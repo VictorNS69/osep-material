@@ -203,7 +203,7 @@ def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=
             # Write modified content
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.writelines(new_lines)
-            print(f"  {color_text('File updated', 'green')}")
+            print(f"  {color_text('Backup done', 'green')}")
             return True, 1
         elif not has_matches:
             # Don't print anything if no matches found
