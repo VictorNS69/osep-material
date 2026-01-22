@@ -1,3 +1,6 @@
+# Tools directory
+/Tools/*
+
 # Bin files
 *.bin
 
