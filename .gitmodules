@@ -1,0 +1,3 @@
+[submodule "scripts/http-server"]
+	path = scripts/http-server
+	url = git@gist.github.com:eac3d29c18e8f1590b88b1092f505933.git
