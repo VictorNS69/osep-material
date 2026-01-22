@@ -1,3 +1,6 @@
+# Bak files
+*.bak
+
 # Tools directory
 /Tools/*
 
