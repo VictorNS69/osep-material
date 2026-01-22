@@ -13,7 +13,26 @@ import fnmatch
 from pathlib import Path
 
 # Default exclude patterns (excluding the script itself and related files)
-EXCLUDE_PATTERNS = ["ip-replace.sh", "*.md", "*.exe", "*.bak", "*.bin"]
+EXCLUDE_PATTERNS = ["ip-replace.py", "*.md", "*.exe", "*.bak", "*.bin", "backup", ".git", "node_modules", "venv", "__pycache__", ".gitignore", ".gitmodules", "LICENSE"]
+
+def should_exclude_directory(dir_path):
+    """
+    Check if a directory should be excluded from processing
+    
+    Args:
+        dir_path: Path to the directory to check
+    
+    Returns:
+        bool: True if directory should be excluded, False otherwise
+    """
+    dir_name = os.path.basename(dir_path)
+    
+    # Check excluded patterns
+    for pattern in EXCLUDE_PATTERNS:
+        if fnmatch.fnmatch(dir_name, pattern):
+            return True
+    
+    return False
 
 def should_exclude_file(file_path, script_name):
     """
@@ -39,9 +58,30 @@ def should_exclude_file(file_path, script_name):
     
     return False
 
-def backup_file(file_path):
-    """Create a backup of the file"""
-    backup_path = file_path + ".bak"
+def backup_file(file_path, backup_dir=None):
+    """
+    Create a backup of the file
+    
+    Args:
+        file_path: Path to the file to backup
+        backup_dir: Directory to store backups (None for same directory)
+    
+    Returns:
+        str: Path to backup file
+    """
+    if backup_dir:
+        # Create backup directory if it doesn't exist
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Get relative path from the original directory
+        rel_path = os.path.relpath(file_path, start=os.path.dirname(file_path))
+        backup_path = os.path.join(backup_dir, rel_path + ".bak")
+        
+        # Create subdirectories in backup directory if needed
+        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+    else:
+        backup_path = file_path + ".bak"
+    
     print(f"Creating backup: {backup_path}")
     shutil.copy2(file_path, backup_path)
     return backup_path
@@ -63,7 +103,7 @@ def search_in_file(file_path, search_pattern):
         print(f"Error reading {file_path}: {e}")
     return matches
 
-def replace_in_file(file_path, search_pattern, replace_url, dry_run=False):
+def replace_in_file(file_path, search_pattern, replace_url, backup_dir=None, dry_run=False):
     """
     Replace search pattern with replace_url in file
     
@@ -82,6 +122,10 @@ def replace_in_file(file_path, search_pattern, replace_url, dry_run=False):
         
         if count > 0:
             if not dry_run:
+                # Create backup before modification
+                if backup_dir is not None:
+                    backup_file(file_path, backup_dir)
+                
                 # Write back to file
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(new_content)
@@ -89,8 +133,7 @@ def replace_in_file(file_path, search_pattern, replace_url, dry_run=False):
             else:
                 print(f"  Would replace {count} occurrence(s)")
             replacements = count
-        else:
-            print(f"  No matches found")
+        # Removed the "No matches found" print statement
             
         return True, replacements, errors
         
@@ -99,7 +142,7 @@ def replace_in_file(file_path, search_pattern, replace_url, dry_run=False):
         errors.append(error_msg)
         return False, replacements, errors
 
-def process_file_interactive(file_path, search_pattern, replace_url):
+def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=None):
     """
     Interactive mode: show each match and ask for confirmation
     """
@@ -111,9 +154,11 @@ def process_file_interactive(file_path, search_pattern, replace_url):
         
         modified = False
         new_lines = []
+        has_matches = False
         
         for line_num, line in enumerate(lines, 1):
             if re.search(search_pattern, line):
+                has_matches = True
                 print(f"\nLine {line_num}: {line.rstrip()}")
                 response = input(f"Replace with '{replace_url}'? (y/n/a/q): ").lower().strip()
                 
@@ -137,14 +182,18 @@ def process_file_interactive(file_path, search_pattern, replace_url):
                 new_lines.append(line)
         
         if modified:
-            # Create backup
-            backup_file(file_path)
+            # Create backup before modification
+            if backup_dir is not None:
+                backup_file(file_path, backup_dir)
             
             # Write modified content
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.writelines(new_lines)
             print(f"  File updated")
             return True, 1
+        elif not has_matches:
+            # Don't print anything if no matches found
+            pass
         else:
             print(f"  No changes made")
             return True, 0
@@ -165,7 +214,10 @@ def find_files(directory, extensions=None):
         list: List of file paths
     """
     files = []
-    for root, _, filenames in os.walk(directory):
+    for root, dirs, filenames in os.walk(directory):
+        # Remove excluded directories from dirs list so os.walk doesn't traverse them
+        dirs[:] = [d for d in dirs if not should_exclude_directory(os.path.join(root, d))]
+        
         for filename in filenames:
             if extensions:
                 ext = os.path.splitext(filename)[1].lower()
@@ -174,7 +226,7 @@ def find_files(directory, extensions=None):
             else:
                 files.append(os.path.join(root, filename))
     return files
-
+    
 def main():
     parser = argparse.ArgumentParser(
         description='Search and replace URLs in files',
@@ -182,8 +234,8 @@ def main():
         epilog="""
 Examples:
   %(prog)s --search-url "http://old.com" --replace-url "https://new.com"
-  %(prog)s --mode interactive --search-url "http://old.com" --replace-url "https://new.com"
-  %(prog)s --mode direct --search-url "http://old.com" --replace-url "https://new.com" --backup
+  %(prog)s --mode interactive --search-url "http://old.com" --replace-url "https://new.com" --backup-dir ./backups
+  %(prog)s --mode direct --search-url "http://old.com" --replace-url "https://new.com" --backup-dir ./backups
         """
     )
     
@@ -197,8 +249,8 @@ Examples:
     parser.add_argument('--replace-url', required=True,
                        help='URL to replace with')
     
-    parser.add_argument('--backup', action='store_true',
-                       help='Create backup files before replacing (required for direct mode)')
+    parser.add_argument('--backup-dir',
+                       help='Directory to store backup files (required for interactive and direct modes)')
     
     parser.add_argument('--directory', default='.',
                        help='Directory to process (default: current directory)')
@@ -218,22 +270,31 @@ Examples:
     script_name = os.path.basename(__file__)
     
     # Validate arguments based on mode
-    if args.mode == 'direct' and not args.backup:
-        parser.error("--backup is required for direct mode")
+    if args.mode in ['interactive', 'direct'] and not args.backup_dir:
+        parser.error(f"--backup-dir is required for {args.mode} mode")
     
     # Add user exclude patterns
     global EXCLUDE_PATTERNS
     EXCLUDE_PATTERNS.extend(args.exclude)
     
+    # Get absolute paths
+    directory = os.path.abspath(args.directory)
+    if args.backup_dir:
+        backup_dir = os.path.abspath(args.backup_dir)
+    else:
+        backup_dir = None
+    
     # Check if directory exists
-    if not os.path.isdir(args.directory):
-        print(f"Error: Directory '{args.directory}' does not exist")
+    if not os.path.isdir(directory):
+        print(f"Error: Directory '{directory}' does not exist")
         sys.exit(1)
     
     print(f"Mode: {args.mode}")
     print(f"Search URL: {args.search_url}")
     print(f"Replace URL: {args.replace_url}")
-    print(f"Directory: {os.path.abspath(args.directory)}")
+    print(f"Directory: {directory}")
+    if args.backup_dir:
+        print(f"Backup directory: {backup_dir}")
     if args.extensions:
         print(f"Extensions: {', '.join(args.extensions)}")
     print(f"Excluding: {', '.join(EXCLUDE_PATTERNS)}")
@@ -242,7 +303,7 @@ Examples:
     print("-" * 50)
     
     # Find files to process
-    files = find_files(os.path.abspath(args.directory), args.extensions)
+    files = find_files(directory, args.extensions)
     
     if not files:
         print("No files found to process")
@@ -257,6 +318,8 @@ Examples:
         print(f"Error in search pattern: {e}")
         sys.exit(1)
     
+    total_files_processed = 0
+    total_files_with_matches = 0
     total_replacements = 0
     total_errors = 0
     
@@ -265,33 +328,38 @@ Examples:
         if should_exclude_file(file_path, script_name):
             continue
         
+        total_files_processed += 1
+        
         if args.mode == 'search':
             # Search mode: just find and display matches
             matches = search_in_file(file_path, search_pattern)
             if matches:
+                total_files_with_matches += 1
                 print(f"\n{file_path}:")
                 for line_num, line in matches:
                     print(f"  Line {line_num}: {line}")
         
         elif args.mode == 'interactive':
             # Interactive mode
-            success, replacements = process_file_interactive(file_path, search_pattern, args.replace_url)
+            success, replacements = process_file_interactive(
+                file_path, search_pattern, args.replace_url, backup_dir
+            )
             if not success:
                 break  # User quit
+            if replacements > 0:
+                total_files_with_matches += 1
             total_replacements += replacements
         
         elif args.mode == 'direct':
             # Direct mode
-            print(f"\nProcessing: {file_path}")
-            
-            # Create backup if requested
-            if args.backup:
-                backup_file(file_path)
-            
-            # Perform replacement
             success, replacements, errors = replace_in_file(
-                file_path, search_pattern, args.replace_url, args.dry_run
+                file_path, search_pattern, args.replace_url, backup_dir, args.dry_run
             )
+            
+            if replacements > 0:
+                total_files_with_matches += 1
+                print(f"\n{file_path}:")
+                print(f"  Replaced {replacements} occurrence(s)")
             
             if errors:
                 print(f"  Errors: {', '.join(errors)}")
@@ -302,6 +370,8 @@ Examples:
     print("\n" + "=" * 50)
     print(f"Summary:")
     print(f"  Mode: {args.mode}")
+    print(f"  Files processed: {total_files_processed}")
+    print(f"  Files with matches: {total_files_with_matches}")
     print(f"  Total replacements: {total_replacements}")
     if total_errors > 0:
         print(f"  Errors: {total_errors}")
