@@ -12,8 +12,27 @@ import sys
 import fnmatch
 from pathlib import Path
 
+# ANSI color codes
+COLORS = {
+    'RED': '\033[91m',
+    'GREEN': '\033[92m',
+    'YELLOW': '\033[93m',
+    'BLUE': '\033[94m',
+    'MAGENTA': '\033[95m',
+    'CYAN': '\033[96m',
+    'WHITE': '\033[97m',
+    'BOLD': '\033[1m',
+    'UNDERLINE': '\033[4m',
+    'END': '\033[0m',
+}
+
 # Default exclude patterns (excluding the script itself and related files)
 EXCLUDE_PATTERNS = ["ip-replace.py", "*.md", "*.exe", "*.bak", "*.bin", "backup", ".git", "node_modules", "venv", "__pycache__", ".gitignore", ".gitmodules", "LICENSE"]
+
+# Helper function for colors
+def color_text(text, color):
+    """Colorize text with ANSI codes"""
+    return f"{COLORS.get(color.upper(), '')}{text}{COLORS['END']}"
 
 def should_exclude_directory(dir_path):
     """
@@ -159,8 +178,8 @@ def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=
         for line_num, line in enumerate(lines, 1):
             if re.search(search_pattern, line):
                 has_matches = True
-                print(f"\nLine {line_num}: {line.rstrip()}")
-                response = input(f"Replace with '{replace_url}'? (y/n/q): ").lower().strip()
+                print(f"\n{color_text(f'Line {line_num}: {line.rstrip()}', 'yellow')}")
+                response = input(f"Replace with '{replace_url}'? {color_text(f'(y/N/q)', "bold")}: ").lower().strip()
                 
                 if response == 'q':
                     print("Quitting interactive mode")
@@ -329,9 +348,9 @@ Examples:
             matches = search_in_file(file_path, search_pattern)
             if matches:
                 total_files_with_matches += 1
-                print(f"\n{file_path}:")
+                print(f"\n{color_text(file_path, 'green')}:")
                 for line_num, line in matches:
-                    print(f"  Line {line_num}: {line}")
+                    print(f"  {color_text(f'Line {line_num}:', 'yellow')} {line}")
         
         elif args.mode == 'interactive':
             # Interactive mode
@@ -359,20 +378,20 @@ Examples:
             if replacements > 0:
                 total_files_with_matches += 1
                 print(f"\n{file_path}:")
-                print(f"  Replaced {replacements} occurrence(s)")
+                print(f"  {color_text(f'Replaced {count} occurrence(s)', 'green')}")
             
             if errors:
-                print(f"  Errors: {', '.join(errors)}")
-                total_errors += 1
+            	print(f"  {color_text('Errors:', 'red')} {', '.join(errors)}")
+            	total_errors += 1
             
             total_replacements += replacements
     
     print("\n" + "=" * 50)
     print(f"Summary:")
-    print(f"  Mode: {args.mode}")
-    print(f"  Files processed: {total_files_processed}")
-    print(f"  Files with matches: {total_files_with_matches}")
-    print(f"  Total replacements: {total_replacements}")
+    print(f"  {color_text('Mode:', 'cyan')} {args.mode}")
+    print(f"  {color_text('Files processed:', 'cyan')} {total_files_processed}")
+    print(f"  {color_text('Files with search string:', 'cyan')} {total_files_with_matches}")
+    print(f"  {color_text('Total replacements:', 'cyan')} {color_text(f'{total_replacements}', 'green')}")
     if total_errors > 0:
         print(f"  Errors: {total_errors}")
     if args.dry_run:
