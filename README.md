@@ -11,7 +11,10 @@ python3 scripts/http-server/simple-http-post-server.py 8000
 ```
 
 ## Script to change all URLs
+> [!NOTE]
+> Please read [this](https://github.com/VictorNS69/osep-material/tree/main/scripts#ip-replacepy) before running `ip-replace.py`.
+
 ```bash
 # In the root folder
-scripts/ip-replace.py --search http://<URL>:<PORT> --replace http://192.168.235.130:8000 --backup-dir ./backup --mode direct
+scripts/ip-replace.py --search 'http://<URL>:<PORT>' --replace http://192.168.235.130:8000 --backup-dir ./backup --mode direct
 ```
