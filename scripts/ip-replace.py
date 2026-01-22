@@ -146,7 +146,7 @@ def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=
     """
     Interactive mode: show each match and ask for confirmation
     """
-    print(f"\nProcessing: {file_path}")
+    #print(f"\nProcessing: {file_path}")
     
     try:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -160,17 +160,11 @@ def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=
             if re.search(search_pattern, line):
                 has_matches = True
                 print(f"\nLine {line_num}: {line.rstrip()}")
-                response = input(f"Replace with '{replace_url}'? (y/n/a/q): ").lower().strip()
+                response = input(f"Replace with '{replace_url}'? (y/n/q): ").lower().strip()
                 
                 if response == 'q':
                     print("Quitting interactive mode")
                     return False, 0
-                elif response == 'a':
-                    # Replace all remaining in this file
-                    new_line = re.sub(search_pattern, replace_url, line)
-                    new_lines.append(new_line)
-                    modified = True
-                    print(f"  Auto-replacing this and remaining matches")
                 elif response == 'y':
                     new_line = re.sub(search_pattern, replace_url, line)
                     new_lines.append(new_line)
@@ -341,9 +335,15 @@ Examples:
         
         elif args.mode == 'interactive':
             # Interactive mode
-            success, replacements = process_file_interactive(
+            result = process_file_interactive(
                 file_path, search_pattern, args.replace_url, backup_dir
             )
+            
+            # Check if function returned None (no matches found)
+            if result is None:
+                continue  # Skip to next file
+                
+            success, replacements = result
             if not success:
                 break  # User quit
             if replacements > 0:
