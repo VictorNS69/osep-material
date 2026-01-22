@@ -1,0 +1,404 @@
+#!/usr/bin/env python3
+"""
+URL Search and Replace Tool
+Supports three modes: search (default), interactive, and direct
+"""
+
+import argparse
+import os
+import re
+import shutil
+import sys
+import fnmatch
+from pathlib import Path
+
+# ANSI color codes
+COLORS = {
+    'RED': '\033[91m',
+    'GREEN': '\033[92m',
+    'YELLOW': '\033[93m',
+    'BLUE': '\033[94m',
+    'MAGENTA': '\033[95m',
+    'CYAN': '\033[96m',
+    'WHITE': '\033[97m',
+    'BOLD': '\033[1m',
+    'UNDERLINE': '\033[4m',
+    'END': '\033[0m',
+}
+
+# Default exclude patterns (excluding the script itself and related files)
+EXCLUDE_PATTERNS = ["ip-replace.py", "*.md", "*.exe", "*.bak", "*.bin", "backup", ".git", "node_modules", "venv", "__pycache__", ".gitignore", ".gitmodules", "LICENSE"]
+
+# Helper function for colors
+def color_text(text, color):
+    """Colorize text with ANSI codes"""
+    return f"{COLORS.get(color.upper(), '')}{text}{COLORS['END']}"
+
+def should_exclude_directory(dir_path):
+    """
+    Check if a directory should be excluded from processing
+    
+    Args:
+        dir_path: Path to the directory to check
+    
+    Returns:
+        bool: True if directory should be excluded, False otherwise
+    """
+    dir_name = os.path.basename(dir_path)
+    
+    # Check excluded patterns
+    for pattern in EXCLUDE_PATTERNS:
+        if fnmatch.fnmatch(dir_name, pattern):
+            return True
+    
+    return False
+
+def should_exclude_file(file_path, script_name):
+    """
+    Check if a file should be excluded from processing
+    
+    Args:
+        file_path: Path to the file to check
+        script_name: Name of the current script
+    
+    Returns:
+        bool: True if file should be excluded, False otherwise
+    """
+    filename = os.path.basename(file_path)
+    
+    # Exclude this script and ip-replace.sh
+    if filename in ["ip-replace.sh", script_name]:
+        return True
+    
+    # Check excluded patterns
+    for pattern in EXCLUDE_PATTERNS:
+        if fnmatch.fnmatch(filename, pattern):
+            return True
+    
+    return False
+
+def backup_file(file_path, backup_dir=None):
+    """
+    Create a backup of the file
+    
+    Args:
+        file_path: Path to the file to backup
+        backup_dir: Directory to store backups (None for same directory)
+    
+    Returns:
+        str: Path to backup file
+    """
+    if backup_dir:
+        # Create backup directory if it doesn't exist
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Get relative path from the original directory
+        rel_path = os.path.relpath(file_path, start=os.path.dirname(file_path))
+        backup_path = os.path.join(backup_dir, rel_path + ".bak")
+        
+        # Create subdirectories in backup directory if needed
+        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+    else:
+        backup_path = file_path + ".bak"
+    
+    print(f"Creating backup: {backup_path}")
+    shutil.copy2(file_path, backup_path)
+    return backup_path
+
+def search_in_file(file_path, search_pattern):
+    """
+    Search for pattern in file and return matches
+    
+    Returns:
+        list: List of tuples (line_number, line_content)
+    """
+    matches = []
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line_num, line in enumerate(f, 1):
+                if re.search(search_pattern, line):
+                    matches.append((line_num, line.rstrip()))
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+    return matches
+
+def replace_in_file(file_path, search_pattern, replace_url, backup_dir=None, dry_run=False):
+    """
+    Replace search pattern with replace_url in file
+    
+    Returns:
+        tuple: (success, replacements_count, errors)
+    """
+    replacements = 0
+    errors = []
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        
+        # Perform the replacement
+        new_content, count = re.subn(search_pattern, replace_url, content)
+        
+        if count > 0:
+            if not dry_run:
+                # Create backup before modification
+                if backup_dir is not None:
+                    backup_file(file_path, backup_dir)
+                
+                # Write back to file
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                print(f"  Replaced {count} occurrence(s)")
+            else:
+                print(f"  Would replace {count} occurrence(s)")
+            replacements = count
+        # Removed the "No matches found" print statement
+            
+        return True, replacements, errors
+        
+    except Exception as e:
+        error_msg = f"Error processing {file_path}: {e}"
+        errors.append(error_msg)
+        return False, replacements, errors
+
+def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=None):
+    """
+    Interactive mode: show each match and ask for confirmation
+    """
+        
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+        
+        modified = False
+        new_lines = []
+        has_matches = False
+        
+        for line_num, line in enumerate(lines, 1):
+            if re.search(search_pattern, line):
+                has_matches = True
+                print(f"\nProcessing: {color_text(f'{file_path}', 'green')}")
+                print(f"{color_text(f'Line {line_num}:', 'green')}")
+                print(f"{color_text(f'\n\t{line.rstrip()}', 'yellow')}")
+                response = input(f"Replace with '{replace_url}'? {color_text(f'(y/N/q)', "bold")}: ").lower().strip()
+                
+                if response == 'q':
+                    print(f"{color_text('Quitting interactive mode', 'red')}")
+                    return False, 0
+                elif response == 'y':
+                    new_line = re.sub(search_pattern, replace_url, line)
+                    new_lines.append(new_line)
+                    modified = True
+                    print(color_text(f"  Replaced", "green"))
+                else:
+                    new_lines.append(line)
+            else:
+                new_lines.append(line)
+        
+        if modified:
+            # Create backup before modification
+            if backup_dir is not None:
+                backup_file(file_path, backup_dir)
+            
+            # Write modified content
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(new_lines)
+            print(f"  {color_text('Backup done', 'green')}")
+            return True, 1
+        elif not has_matches:
+            # Don't print anything if no matches found
+            pass
+        else:
+            print(f"  No changes made")
+            return True, 0
+            
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return False, 0
+
+def find_files(directory, extensions=None):
+    """
+    Find all files in directory with given extensions
+    
+    Args:
+        directory: Directory to search
+        extensions: List of file extensions to include (None for all)
+    
+    Returns:
+        list: List of file paths
+    """
+    files = []
+    for root, dirs, filenames in os.walk(directory):
+        # Remove excluded directories from dirs list so os.walk doesn't traverse them
+        dirs[:] = [d for d in dirs if not should_exclude_directory(os.path.join(root, d))]
+        
+        for filename in filenames:
+            if extensions:
+                ext = os.path.splitext(filename)[1].lower()
+                if ext in extensions:
+                    files.append(os.path.join(root, filename))
+            else:
+                files.append(os.path.join(root, filename))
+    return files
+    
+def main():
+    parser = argparse.ArgumentParser(
+        description='Search and replace URLs in files',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --search-url "http://old.com" --replace-url "https://new.com"
+  %(prog)s --mode interactive --search-url "http://old.com" --replace-url "https://new.com" --backup-dir ./backups
+  %(prog)s --mode direct --search-url "http://old.com" --replace-url "https://new.com" --backup-dir ./backups
+        """
+    )
+    
+    parser.add_argument('--mode', choices=['search', 'interactive', 'direct'], 
+                       default='search',
+                       help='Operation mode: search (default), interactive, or direct replace')
+    
+    parser.add_argument('--search-url', required=True,
+                       help='URL pattern to search for (supports regex)')
+    
+    parser.add_argument('--replace-url', required=True,
+                       help='URL to replace with')
+    
+    parser.add_argument('--backup-dir',
+                       help='Directory to store backup files (required for interactive and direct modes)')
+    
+    parser.add_argument('--directory', default='.',
+                       help='Directory to process (default: current directory)')
+    
+    parser.add_argument('--extensions', nargs='+',
+                       help='File extensions to process (e.g., .html .js .css)')
+    
+    parser.add_argument('--exclude', nargs='+', default=[],
+                       help='Additional filename patterns to exclude')
+    
+    parser.add_argument('--dry-run', action='store_true',
+                       help='Show what would be changed without making changes')
+    
+    args = parser.parse_args()
+    
+    # Get current script name
+    script_name = os.path.basename(__file__)
+    
+    # Validate arguments based on mode
+    if args.mode in ['interactive', 'direct'] and not args.backup_dir:
+        parser.error(f"--backup-dir is required for {args.mode} mode")
+    
+    # Add user exclude patterns
+    global EXCLUDE_PATTERNS
+    EXCLUDE_PATTERNS.extend(args.exclude)
+    
+    # Get absolute paths
+    directory = os.path.abspath(args.directory)
+    if args.backup_dir:
+        backup_dir = os.path.abspath(args.backup_dir)
+    else:
+        backup_dir = None
+    
+    # Check if directory exists
+    if not os.path.isdir(directory):
+        print(f"Error: Directory '{directory}' does not exist")
+        sys.exit(1)
+    
+    print(f"{color_text('Mode:', 'cyan')} {args.mode}")
+    print(f"{color_text('Search URL:', 'yellow')} {args.search_url}")
+    print(f"{color_text('Replace URL:', 'green')} {args.replace_url}")
+    print(f"{color_text('Base directory:', 'cyan')} {directory}")
+    if args.backup_dir:
+        print(f"{color_text('Backup directory:', 'cyan')} {backup_dir}")
+    if args.extensions:
+        print(f"{color_text('Extensions:', 'green')} {', '.join(args.extensions)}")
+    print(f"{color_text('Excluding:', 'red')} {', '.join(EXCLUDE_PATTERNS)}")
+    if args.dry_run:
+        print(color_text("DRY RUN - No changes will be made", "red"))
+
+    print("-" * 50)
+    
+    # Find files to process
+    files = find_files(directory, args.extensions)
+    
+    if not files:
+        print(f'{color_text("No files found to process", "red")}')
+        return
+    
+    print(color_text(f"Found {len(files)} files to scan", "yellow"))
+    
+    # Compile regex pattern for efficiency
+    try:
+        search_pattern = re.compile(args.search_url)
+    except re.error as e:
+        print(f"Error in search pattern: {e}")
+        sys.exit(1)
+    
+    total_files_processed = 0
+    total_files_with_matches = 0
+    total_replacements = 0
+    total_errors = 0
+    
+    for file_path in files:
+        # Check if file should be excluded
+        if should_exclude_file(file_path, script_name):
+            continue
+        
+        total_files_processed += 1
+        
+        if args.mode == 'search':
+            # Search mode: just find and display matches
+            matches = search_in_file(file_path, search_pattern)
+            if matches:
+                total_files_with_matches += 1
+                print(f"\n{color_text(file_path, 'green')}:")
+                for line_num, line in matches:
+                    print(f"  {color_text(f'Line {line_num}: {line}', 'yellow')}")
+        
+        elif args.mode == 'interactive':
+            # Interactive mode
+            result = process_file_interactive(
+                file_path, search_pattern, args.replace_url, backup_dir
+            )
+            
+            # Check if function returned None (no matches found)
+            if result is None:
+                continue  # Skip to next file
+                
+            success, replacements = result
+            if not success:
+                break  # User quit
+            if replacements > 0:
+                total_files_with_matches += 1
+            total_replacements += replacements
+        
+        elif args.mode == 'direct':
+            # Direct mode
+            success, replacements, errors = replace_in_file(
+                file_path, search_pattern, args.replace_url, backup_dir, args.dry_run
+            )
+            
+            if replacements > 0:
+                total_files_with_matches += 1
+                print(f"\n{file_path}:")
+                print(f"  {color_text(f'Replaced {count} occurrence(s)', 'green')}")
+            
+            if errors:
+            	print(f"  {color_text('Errors:', 'red')} {', '.join(errors)}")
+            	total_errors += 1
+            
+            total_replacements += replacements
+    
+    print("\n" + "=" * 50)
+    print(f"Summary:")
+    print(f"  {color_text('Mode:', 'cyan')} {args.mode}")
+    print(f"  {color_text('Files processed:', 'cyan')} {total_files_processed}")
+    print(f"  {color_text('Files with search string:', 'cyan')} {total_files_with_matches}")
+    print(f"  {color_text('Total replacements:', 'cyan')} {color_text(f'{total_replacements}', 'green')}")
+    if total_errors > 0:
+        print(f"  Errors: {total_errors}")
+    if args.dry_run:
+        print("  DRY RUN COMPLETED - No changes were made")
+    print("=" * 50)
+
+if __name__ == "__main__":
+    main()
