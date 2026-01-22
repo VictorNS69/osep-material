@@ -1,34 +1,154 @@
 #!/bin/bash
 
-# Script to search and replace IP addresses in files
-# Searches for: http://192.168.235.130:8000
-# Replaces with: http://127.0.0.1:69
+# Script to search and replace URLs in files
+# Allows custom search and replace URLs as arguments
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Configuration
-SEARCH_STRING="http://192.168.235.130:8000"
-REPLACE_STRING="http://127.0.0.1:69"
+# Default configuration
+DEFAULT_SEARCH_URL="http://192.168.235.130:8000"
+DEFAULT_REPLACE_URL="http://127.0.0.1:69"
 EXCLUDE_PATTERNS=("*.md" "*.exe" "*.bin")
-BACKUP_EXTENSION=".bak"
+BACKUP_DIR=""
+SEARCH_URL=""
+REPLACE_URL=""
+MODE="search"  # Default mode
 
-echo -e "${BLUE}=== URL Search and Replace Tool ===${NC}"
-echo "Searching for: $SEARCH_STRING"
-echo "Replacing with: $REPLACE_STRING"
-echo ""
+# Function to print usage
+print_usage() {
+    echo -e "${BLUE}=== URL Search and Replace Tool ===${NC}"
+    echo ""
+    echo "Usage: $0 [OPTIONS] --backup-dir DIR"
+    echo ""
+    echo "Required:"
+    echo "  -b, --backup-dir DIR   Backup directory (required)"
+    echo ""
+    echo "URL Options:"
+    echo "  -s, --search URL       URL to search for (default: $DEFAULT_SEARCH_URL)"
+    echo "  -r, --replace URL      URL to replace with (default: $DEFAULT_REPLACE_URL)"
+    echo ""
+    echo "Mode Options:"
+    echo "  -m, --mode MODE        Operation mode: search, interactive, direct (default: search)"
+    echo "      --search-only      Alias for --mode search"
+    echo "      --interactive      Alias for --mode interactive"
+    echo "      --direct           Alias for --mode direct"
+    echo ""
+    echo "Other Options:"
+    echo "  -e, --exclude PAT      Add file pattern to exclude (can be used multiple times)"
+    echo "  -h, --help             Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 -b ./backups --search http://old.com --replace http://new.com"
+    echo "  $0 --backup-dir /tmp/backups --mode direct"
+    echo "  $0 -b ./backups --search-only --search http://192.168.1.100:8080 --replace http://localhost:80"
+    echo "  $0 -b ./backups --interactive -e '*.log' -e '*.tmp'"
+    echo ""
+}
+
+# Parse command line arguments
+parse_arguments() {
+    if [ $# -eq 0 ]; then
+        print_usage
+        exit 1
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -b|--backup-dir)
+                BACKUP_DIR="$2"
+                shift 2
+                ;;
+            -s|--search)
+                SEARCH_URL="$2"
+                shift 2
+                ;;
+            -r|--replace)
+                REPLACE_URL="$2"
+                shift 2
+                ;;
+            -m|--mode)
+                MODE="$2"
+                shift 2
+                ;;
+            --search-only)
+                MODE="search"
+                shift
+                ;;
+            --interactive)
+                MODE="interactive"
+                shift
+                ;;
+            --direct)
+                MODE="direct"
+                shift
+                ;;
+            -e|--exclude)
+                EXCLUDE_PATTERNS+=("$2")
+                shift 2
+                ;;
+            -h|--help)
+                print_usage
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Error: Unknown option: $1${NC}"
+                print_usage
+                exit 1
+                ;;
+        esac
+    done
+
+    # Validate backup directory
+    if [ -z "$BACKUP_DIR" ]; then
+        echo -e "${RED}Error: Backup directory is required${NC}"
+        print_usage
+        exit 1
+    fi
+
+    # Set default URLs if not provided
+    if [ -z "$SEARCH_URL" ]; then
+        SEARCH_URL="$DEFAULT_SEARCH_URL"
+    fi
+    if [ -z "$REPLACE_URL" ]; then
+        REPLACE_URL="$DEFAULT_REPLACE_URL"
+    fi
+
+    # Validate mode
+    case "$MODE" in
+        search|interactive|direct)
+            # Valid mode
+            ;;
+        *)
+            echo -e "${RED}Error: Invalid mode: $MODE${NC}"
+            echo "Valid modes: search, interactive, direct"
+            exit 1
+            ;;
+    esac
+}
 
 # Function to check if a file should be excluded
 should_exclude_file() {
     local file="$1"
+    local filename
     
-    # Check excluded extensions
+    filename=$(basename "$file")
+    
+    # EXCLUDE THIS SCRIPT AND ip-replace.sh
+    # This prevents the script from modifying itself
+    if [[ "$filename" == $0 ]] || [[ "$filename" == "$(basename "$0")" ]]; then
+        return 0  # True - should exclude
+    fi
+    
+    # Check excluded patterns
     for pattern in "${EXCLUDE_PATTERNS[@]}"; do
-        if [[ $(basename "$file") == $pattern ]]; then
+        if [[ "$filename" == $pattern ]]; then
             return 0  # True - should exclude
         fi
     done
@@ -36,10 +156,79 @@ should_exclude_file() {
     return 1  # False - should process
 }
 
+# Function to create backup directory
+setup_backup_dir() {
+    local backup_dir="$1"
+    
+    if [ ! -d "$backup_dir" ]; then
+        echo -e "${YELLOW}Creating backup directory: $backup_dir${NC}"
+        mkdir -p "$backup_dir"
+        
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Error: Failed to create backup directory${NC}"
+            exit 1
+        fi
+    fi
+    
+    # Make sure it's writable
+    if [ ! -w "$backup_dir" ]; then
+        echo -e "${RED}Error: Backup directory is not writable${NC}"
+        exit 1
+    fi
+}
+
+# Function to create backup of a file
+create_backup() {
+    local source_file="$1"
+    local backup_dir="$2"
+    local timestamp
+    
+    # Get absolute path for consistency
+    source_file=$(realpath "$source_file" 2>/dev/null || echo "$source_file")
+    
+    # Create relative path for backup
+    local relative_path="${source_file#$(pwd)/}"
+    if [ "$relative_path" = "$source_file" ]; then
+        # File is not under current directory
+        relative_path=$(basename "$source_file")
+    fi
+    
+    # Replace slashes with underscores for safe filename
+    local safe_name=$(echo "$relative_path" | sed 's|/|_|g' | sed 's|\.\.|__|g')
+    
+    # Add timestamp
+    timestamp=$(date +"%Y%m%d_%H%M%S")
+    local backup_file="${backup_dir}/${safe_name}_${timestamp}.bak"
+    
+    # Create parent directory in backup location if needed
+    mkdir -p "$(dirname "$backup_file")" 2>/dev/null
+    
+    # Copy file to backup location
+    cp "$source_file" "$backup_file" 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓${NC} Backup: $backup_file"
+        return 0
+    else
+        echo -e "${RED}✗${NC} Failed to backup: $source_file"
+        return 1
+    fi
+}
+
+# Function to find all files recursively
+find_all_files() {
+    # Use find to get all files (excluding hidden directories)
+    # Search in parent directory (../)
+    find ../ -type f ! -path "*/\.*" ! -name ".*" | while IFS= read -r file; do
+        echo "$file"
+    done
+}
+
 # Function to process a single file
 process_file() {
     local file="$1"
-    local mode="$2"  # "search", "replace", "interactive"
+    local mode="$2"
+    local backup_dir="$3"
     
     if should_exclude_file "$file"; then
         return 1
@@ -51,54 +240,88 @@ process_file() {
     
     # Count occurrences
     local count
-    count=$(grep -c "$SEARCH_STRING" "$file" 2>/dev/null || echo 0)
-    
+    count=$(grep -c "$SEARCH_URL" "$file" 2>/dev/null | awk '{print $1}' || echo 0)
     if [ "$count" -gt 0 ]; then
         case "$mode" in
             "search")
-                echo -e "${GREEN}Found in:${NC} $file (${count} occurrences)"
-                # Show first 3 occurrences with line numbers
-                grep -n "$SEARCH_STRING" "$file" 2>/dev/null | head -3 | while IFS= read -r line; do
+                echo -e "${CYAN}Found in:${NC} $file (${count} occurrences)"
+                # Show first 2 occurrences with line numbers
+                grep -n "$SEARCH_URL" "$file" 2>/dev/null | head -2 | while IFS= read -r line; do
                     echo "  Line $line"
                 done
-                if [ "$count" -gt 3 ]; then
-                    echo "  ... and $((count - 3)) more"
+                if [ "$count" -gt 2 ]; then
+                    echo "  ... and $((count - 2)) more"
                 fi
                 echo ""
                 ;;
             "replace")
-                # Create backup
-                cp "$file" "${file}${BACKUP_EXTENSION}"
-                # Perform replacement
-                if sed -i '' "s|$SEARCH_STRING|$REPLACE_STRING|g" "$file" 2>/dev/null; then
-                    # Check if replacement was successful
-                    local new_count
-                    new_count=$(grep -c "$SEARCH_STRING" "$file" 2>/dev/null || echo 0)
-                    echo -e "${GREEN}✓${NC} Replaced in $file (${count} → ${new_count} remaining)"
+                # Create backup before modification
+                if create_backup "$file" "$backup_dir"; then
+                    # Perform replacement
+                    if sed -i '' "s|$SEARCH_URL|$REPLACE_URL|g" "$file" 2>/dev/null; then
+                        # Check if replacement was successful
+                        local new_count
+                        new_count=$(grep -c "$SEARCH_URL" "$file" 2>/dev/null || echo 0)
+                        local replacements_made=$((count - new_count))
+                        echo -e "${GREEN}✓${NC} Replaced in $file (${replacements_made} replacements)"
+                        return 0
+                    else
+                        echo -e "${RED}✗${NC} Failed to process $file"
+                        return 1
+                    fi
                 else
-                    echo -e "${RED}✗${NC} Failed to process $file"
+                    return 1
                 fi
                 ;;
             "interactive")
-                echo -e "${YELLOW}Found in:${NC} $file (${count} occurrences)"
-                # Show preview
-                echo "Preview of first occurrence:"
-                grep -n "$SEARCH_STRING" "$file" 2>/dev/null | head -1 | while IFS= read -r line; do
+                echo -e "${PURPLE}File:${NC} $file"
+                echo -e "  ${YELLOW}Occurrences:${NC} $count"
+                echo ""
+                echo "First occurrence preview:"
+                grep -n "$SEARCH_URL" "$file" 2>/dev/null | head -1 | while IFS= read -r line; do
                     echo "  Line: $line"
                 done
                 echo ""
-                read -p "Replace in this file? (y/n): " -n 1 -r
-                echo ""
-                if [[ $REPLY =~ ^[Yy]$ ]]; then
-                    cp "$file" "${file}${BACKUP_EXTENSION}"
-                    if sed -i '' "s|$SEARCH_STRING|$REPLACE_STRING|g" "$file" 2>/dev/null; then
-                        echo -e "${GREEN}✓ Replaced${NC}"
+                
+                # Show context
+                echo "Context (before → after):"
+                grep -B1 -A1 "$SEARCH_URL" "$file" 2>/dev/null | head -5 | while IFS= read -r context_line; do
+                    if [[ "$context_line" == *"$SEARCH_URL"* ]]; then
+                        echo -e "  ${RED}-${NC} $context_line"
+                        echo -e "  ${GREEN}+${NC} ${context_line//$SEARCH_URL/$REPLACE_URL}"
                     else
-                        echo -e "${RED}✗ Failed${NC}"
+                        echo "    $context_line"
                     fi
-                else
-                    echo "Skipped"
-                fi
+                done
+                echo ""
+                
+                read -p "Replace in this file? (y/n/s=skip all/q=quit): " -n 1 -r
+                echo ""
+                case $REPLY in
+                    [Yy]*)
+                        if create_backup "$file" "$backup_dir"; then
+                            if sed -i '' "s|$SEARCH_URL|$REPLACE_URL|g" "$file" 2>/dev/null; then
+                                echo -e "${GREEN}✓ Replaced successfully${NC}"
+                            else
+                                echo -e "${RED}✗ Replacement failed${NC}"
+                            fi
+                        fi
+                        ;;
+                    [Nn]*)
+                        echo "Skipped"
+                        ;;
+                    [Ss]*)
+                        echo -e "${YELLOW}Skipping all remaining files${NC}"
+                        return 2  # Special code to stop processing
+                        ;;
+                    [Qq]*)
+                        echo -e "${YELLOW}Quitting...${NC}"
+                        exit 0
+                        ;;
+                    *)
+                        echo "Invalid choice, skipping"
+                        ;;
+                esac
                 echo ""
                 ;;
         esac
@@ -108,150 +331,139 @@ process_file() {
     return 1
 }
 
-# Function to find all files recursively
-find_all_files() {
-    # Use find to get all files (excluding hidden directories)
-    find . -type f ! -path "*/\.*" ! -name ".*" | while IFS= read -r file; do
-        echo "$file"
-    done
+# Function to print summary
+print_summary() {
+    local start_time="$1"
+    local files_processed="$2"
+    local files_found="$3"
+    local total_replacements="$4"
+    local backup_dir="$5"
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    echo ""
+    echo "="*60
+    echo -e "${BLUE}OPERATION SUMMARY${NC}"
+    echo "="*60
+    echo -e "Search URL:    ${CYAN}$SEARCH_URL${NC}"
+    echo -e "Replace URL:   ${GREEN}$REPLACE_URL${NC}"
+    echo -e "Mode:          $MODE"
+    echo -e "Backup dir:    $backup_dir"
+    echo "="*60
+    echo -e "Files searched:      $(find_all_files | wc -l)"
+    echo -e "Files with matches:  $files_found"
+    echo -e "Files processed:     $files_processed"
+    echo -e "Total replacements:  $total_replacements"
+    echo -e "Backups created:     $(find "$backup_dir" -name "*.bak" 2>/dev/null | wc -l)"
+    echo -e "Time elapsed:        ${duration}s"
+    echo "="*60
+    
+    if [ "$MODE" = "search" ]; then
+        echo -e "${YELLOW}Note: Run with --mode direct or --mode interactive to make changes${NC}"
+    fi
 }
 
-# Mode 1: Search only mode
-if [[ "$1" == "--search-only" ]] || [[ "$1" == "-s" ]]; then
-    echo -e "${YELLOW}SEARCH ONLY MODE (no replacement)${NC}"
-    echo ""
+# Main execution function
+main() {
+    parse_arguments "$@"
     
-    total_occurrences=0
-    files_found=0
+    # Setup backup directory
+    setup_backup_dir "$BACKUP_DIR"
     
-    while IFS= read -r file; do
-        if process_file "$file" "search"; then
-            files_found=$((files_found + 1))
-            occurrences_in_file=$(grep -c "$SEARCH_STRING" "$file" 2>/dev/null || echo 0)
-            total_occurrences=$((total_occurrences + occurrences_in_file))
-        fi
-    done < <(find_all_files)
-    
-    echo "="*50
-    echo -e "${BLUE}SUMMARY:${NC}"
-    echo "Files searched: $(find_all_files | wc -l)"
-    echo "Files containing pattern: $files_found"
-    echo "Total occurrences found: $total_occurrences"
-    echo ""
-
-# Mode 2: Interactive mode
-elif [[ "$1" == "--interactive" ]] || [[ "$1" == "-i" ]]; then
-    echo -e "${YELLOW}INTERACTIVE MODE${NC}"
-    echo ""
-    
-    # First, find all files with occurrences
-    files_with_matches=()
-    while IFS= read -r file; do
-        if ! should_exclude_file "$file" && grep -q "$SEARCH_STRING" "$file" 2>/dev/null; then
-            files_with_matches+=("$file")
-        fi
-    done < <(find_all_files)
-    
-    if [ ${#files_with_matches[@]} -eq 0 ]; then
-        echo "No files found containing the search string."
-        exit 0
-    fi
-    
-    echo "Found ${#files_with_matches[@]} file(s) containing '$SEARCH_STRING':"
-    echo ""
-    
-    for file in "${files_with_matches[@]}"; do
-        process_file "$file" "interactive"
-    done
-
-# Mode 3: Direct replace mode
-elif [[ "$1" == "--direct" ]] || [[ "$1" == "-d" ]]; then
-    echo -e "${YELLOW}DIRECT REPLACE MODE${NC}"
-    echo -e "${RED}Warning: This will replace ALL occurrences without confirmation!${NC}"
-    echo ""
-    
-    read -p "Are you sure you want to proceed? (y/n): " -n 1 -r
-    echo ""
-    
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "Starting replacement process..."
-        echo ""
-        
-        files_processed=0
-        total_replacements=0
-        
-        while IFS= read -r file; do
-            if ! should_exclude_file "$file"; then
-                count_before=$(grep -c "$SEARCH_STRING" "$file" 2>/dev/null || echo 0)
-                if [ "$count_before" -gt 0 ]; then
-                    # Create backup and replace
-                    cp "$file" "${file}${BACKUP_EXTENSION}"
-                    if sed -i '' "s|$SEARCH_STRING|$REPLACE_STRING|g" "$file" 2>/dev/null; then
-                        count_after=$(grep -c "$SEARCH_STRING" "$file" 2>/dev/null || echo 0)
-                        replacements_made=$((count_before - count_after))
-                        echo -e "${GREEN}✓${NC} $file: ${replacements_made} replacements"
-                        files_processed=$((files_processed + 1))
-                        total_replacements=$((total_replacements + replacements_made))
-                    else
-                        echo -e "${RED}✗${NC} $file: Failed to process"
-                    fi
-                fi
-            fi
-        done < <(find_all_files)
-        
-        echo ""
-        echo "="*50
-        echo -e "${BLUE}REPLACEMENT COMPLETE${NC}"
-        echo "Files processed: $files_processed"
-        echo "Total replacements made: $total_replacements"
-        echo "Backup files created with extension: $BACKUP_EXTENSION"
-        echo ""
-        
-    else
-        echo "Operation cancelled."
-    fi
-
-# Help mode or no mode specified
-else
+    # Display configuration
     echo -e "${BLUE}=== URL Search and Replace Tool ===${NC}"
     echo ""
-    echo "Usage: $0 [MODE]"
-    echo ""
-    echo "Modes:"
-    echo "  -s, --search-only    Search for files containing the string (no replacement)"
-    echo "  -i, --interactive    Interactive mode (ask before each replacement)"
-    echo "  -d, --direct         Direct replace mode (replace all without asking)"
-    echo "  -h, --help           Show this help message"
-    echo ""
-    echo "Examples:"
-    echo "  $0 --search-only     # Just search, don't replace"
-    echo "  $0 -i                # Interactive replacement"
-    echo "  $0 --direct          # Replace all occurrences"
-    echo ""
-    echo "Configuration:"
-    echo "  Search string:  $SEARCH_STRING"
-    echo "  Replace string: $REPLACE_STRING"
-    echo "  Excluded:       ${EXCLUDE_PATTERNS[*]}"
+    echo -e "${YELLOW}Configuration:${NC}"
+    echo -e "  Search URL:    ${CYAN}$SEARCH_URL${NC}"
+    echo -e "  Replace URL:   ${GREEN}$REPLACE_URL${NC}"
+    echo -e "  Mode:          $MODE"
+    echo -e "  Backup dir:    $BACKUP_DIR"
+    echo -e "  Excluded:      ${EXCLUDE_PATTERNS[*]}"
     echo ""
     
-    # Quick search without parameters
-    echo -e "${YELLOW}Quick search (will show first 5 matches):${NC}"
-    echo ""
+    start_time=$(date +%s)
+    files_processed=0
+    files_found=0
+    total_replacements=0
     
-    count=0
-    while IFS= read -r file && [ $count -lt 5 ]; do
-        if ! should_exclude_file "$file"; then
-            if grep -q "$SEARCH_STRING" "$file" 2>/dev/null; then
-                occurrences=$(grep -c "$SEARCH_STRING" "$file" 2>/dev/null || echo 0)
-                echo -e "${GREEN}Found:${NC} $file ($occurrences occurrences)"
-                count=$((count + 1))
+    case "$MODE" in
+        "search")
+            echo -e "${YELLOW}SEARCH MODE (read-only)${NC}"
+            echo ""
+            
+            while IFS= read -r file; do
+                if process_file "$file" "search" "$BACKUP_DIR"; then
+                    files_found=$((files_found + 1))
+                    occurrences=$(grep -c "$SEARCH_URL" "$file" 2>/dev/null || echo 0)
+                    total_replacements=$((total_replacements + occurrences))
+                fi
+            done < <(find_all_files)
+            
+            files_processed=$files_found
+            ;;
+            
+        "interactive")
+            echo -e "${YELLOW}INTERACTIVE MODE${NC}"
+            echo -e "${CYAN}You will be prompted for each file${NC}"
+            echo ""
+            
+            skip_all=false
+            while IFS= read -r file && [ "$skip_all" = false ]; do
+                if ! should_exclude_file "$file" && grep -q "$SEARCH_URL" "$file" 2>/dev/null; then
+                    files_found=$((files_found + 1))
+                    process_file "$file" "interactive" "$BACKUP_DIR"
+                    result=$?
+                    if [ $result -eq 0 ]; then
+                        files_processed=$((files_processed + 1))
+                        # Count replacements made
+                        count_before=$(grep -c "$SEARCH_URL" "${BACKUP_DIR}/$(basename "$file")"* 2>/dev/null | head -1 || echo 0)
+                        count_after=$(grep -c "$SEARCH_URL" "$file" 2>/dev/null || echo 0)
+                        replacements=$((count_before - count_after))
+                        total_replacements=$((total_replacements + replacements))
+                    elif [ $result -eq 2 ]; then
+                        skip_all=true
+                        echo -e "${YELLOW}Skipping all remaining files${NC}"
+                    fi
+                fi
+            done < <(find_all_files)
+            ;;
+            
+        "direct")
+            echo -e "${YELLOW}DIRECT REPLACE MODE${NC}"
+            echo -e "${RED}Warning: This will replace ALL occurrences without confirmation!${NC}"
+            echo ""
+            
+            read -p "Are you sure you want to proceed? (y/n): " -n 1 -r
+            echo ""
+            
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "Starting replacement process..."
+                echo ""
+                
+                while IFS= read -r file; do
+                    if ! should_exclude_file "$file"; then
+                        count_before=$(grep -c "$SEARCH_URL" "$file" 2>/dev/null || echo 0)
+                        if [ "$count_before" -gt 0 ]; then
+                            files_found=$((files_found + 1))
+                            if process_file "$file" "replace" "$BACKUP_DIR"; then
+                                files_processed=$((files_processed + 1))
+                                count_after=$(grep -c "$SEARCH_URL" "$file" 2>/dev/null || echo 0)
+                                replacements_made=$((count_before - count_after))
+                                total_replacements=$((total_replacements + replacements_made))
+                            fi
+                        fi
+                    fi
+                done < <(find_all_files)
+            else
+                echo "Operation cancelled."
+                exit 0
             fi
-        fi
-    done < <(find_all_files)
+            ;;
+    esac
     
-    if [ $count -eq 0 ]; then
-        echo "No files found containing the search string."
-    elif [ $count -ge 5 ]; then
-        echo "... and possibly more (use --search-only to see all)"
-    fi
-fi
+    print_summary "$start_time" "$files_processed" "$files_found" "$total_replacements" "$BACKUP_DIR"
+}
+
+# Run main function with all arguments
+main "$@"
