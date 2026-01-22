@@ -165,8 +165,7 @@ def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=
     """
     Interactive mode: show each match and ask for confirmation
     """
-    #print(f"\nProcessing: {file_path}")
-    
+        
     try:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             lines = f.readlines()
@@ -178,17 +177,19 @@ def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=
         for line_num, line in enumerate(lines, 1):
             if re.search(search_pattern, line):
                 has_matches = True
-                print(f"\n{color_text(f'Line {line_num}: {line.rstrip()}', 'yellow')}")
+                print(f"\nProcessing: {color_text(f'{file_path}', 'green')}")
+                print(f"{color_text(f'Line {line_num}:', 'green')}")
+                print(f"{color_text(f'\n\t{line.rstrip()}', 'yellow')}")
                 response = input(f"Replace with '{replace_url}'? {color_text(f'(y/N/q)', "bold")}: ").lower().strip()
                 
                 if response == 'q':
-                    print("Quitting interactive mode")
+                    print(f"{color_text('Quitting interactive mode', 'red')}")
                     return False, 0
                 elif response == 'y':
                     new_line = re.sub(search_pattern, replace_url, line)
                     new_lines.append(new_line)
                     modified = True
-                    print(f"  Replaced")
+                    print(color_text(f"  Replaced", "green"))
                 else:
                     new_lines.append(line)
             else:
@@ -202,7 +203,7 @@ def process_file_interactive(file_path, search_pattern, replace_url, backup_dir=
             # Write modified content
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.writelines(new_lines)
-            print(f"  File updated")
+            print(f"  {color_text('File updated', 'green')}")
             return True, 1
         elif not has_matches:
             # Don't print anything if no matches found
@@ -302,27 +303,28 @@ Examples:
         print(f"Error: Directory '{directory}' does not exist")
         sys.exit(1)
     
-    print(f"Mode: {args.mode}")
-    print(f"Search URL: {args.search_url}")
-    print(f"Replace URL: {args.replace_url}")
-    print(f"Directory: {directory}")
+    print(f"{color_text('Mode:', 'cyan')} {args.mode}")
+    print(f"{color_text('Search URL:', 'yellow')} {args.search_url}")
+    print(f"{color_text('Replace URL:', 'green')} {args.replace_url}")
+    print(f"{color_text('Base directory:', 'cyan')} {directory}")
     if args.backup_dir:
-        print(f"Backup directory: {backup_dir}")
+        print(f"{color_text('Backup directory:', 'cyan')} {backup_dir}")
     if args.extensions:
-        print(f"Extensions: {', '.join(args.extensions)}")
-    print(f"Excluding: {', '.join(EXCLUDE_PATTERNS)}")
+        print(f"{color_text('Extensions:', 'green')} {', '.join(args.extensions)}")
+    print(f"{color_text('Excluding:', 'red')} {', '.join(EXCLUDE_PATTERNS)}")
     if args.dry_run:
-        print("DRY RUN - No changes will be made")
+        print(color_text("DRY RUN - No changes will be made", "red"))
+
     print("-" * 50)
     
     # Find files to process
     files = find_files(directory, args.extensions)
     
     if not files:
-        print("No files found to process")
+        print(f'{color_text("No files found to process", "red")}')
         return
     
-    print(f"Found {len(files)} files to scan")
+    print(color_text(f"Found {len(files)} files to scan", "yellow"))
     
     # Compile regex pattern for efficiency
     try:
@@ -350,7 +352,7 @@ Examples:
                 total_files_with_matches += 1
                 print(f"\n{color_text(file_path, 'green')}:")
                 for line_num, line in matches:
-                    print(f"  {color_text(f'Line {line_num}:', 'yellow')} {line}")
+                    print(f"  {color_text(f'Line {line_num}: {line}', 'yellow')}")
         
         elif args.mode == 'interactive':
             # Interactive mode
