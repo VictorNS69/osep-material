@@ -148,7 +148,7 @@ def replace_in_file(file_path, search_pattern, replace_url, backup_dir=None, dry
                 # Write back to file
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(new_content)
-                print(f"  Replaced {count} occurrence(s)")
+                print(f"  {color_text('Backup done', 'green')}")
             else:
                 print(f"  Would replace {count} occurrence(s)")
             replacements = count
@@ -380,7 +380,7 @@ Examples:
             if replacements > 0:
                 total_files_with_matches += 1
                 print(f"\n{file_path}:")
-                print(f"  {color_text(f'Replaced {count} occurrence(s)', 'green')}")
+                print(f"  {color_text(f'Replaced {replacements} occurrence(s)', 'green')}")
             
             if errors:
             	print(f"  {color_text('Errors:', 'red')} {', '.join(errors)}")
