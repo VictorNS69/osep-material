@@ -83,7 +83,7 @@ InstallUtil.exe /debug /path=suspicious.bin /args="analyze,log,report"
 
 The file is compilled with:
 ```powershell
-C:\windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /t:exe /out:NL-mod.exe  /r:"C:\windows\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation\v4.0_3.0.0.0__31bf3856ad364e35\System.Management.Automation.dll" .\NetLoader-mod.cs
+. 'C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\Roslyn\csc.exe' /t:exe /out:NL-mod.exe  /r:"C:\windows\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation\v4.0_3.0.0.0__31bf3856ad364e35\System.Management.Automation.dll" .\NetLoader-mod.cs
 ```
 
 And encoded with certutil.
