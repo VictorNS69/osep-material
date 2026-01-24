@@ -1,3 +1,6 @@
+# Custom tools
+scripts/shellcode-loaders/AESShellcodeLoader/AESShellLoader/
+
 # Bak files
 *.bak
 
