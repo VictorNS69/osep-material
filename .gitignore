@@ -7,6 +7,9 @@
 # Bin files
 *.bin
 
+# encoded files
+*.enc
+
 # Prerequisites
 *.d
 
