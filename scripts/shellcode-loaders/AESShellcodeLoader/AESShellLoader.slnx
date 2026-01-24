@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="AESShellLoader.vcxproj" />
+  <Project Path="AESShellLoader.vcxproj" Id="daf666e6-6247-4b23-9182-9d16c34fb81d" />
 </Solution>
