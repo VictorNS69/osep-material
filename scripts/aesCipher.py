@@ -26,11 +26,7 @@ def encrypt_file(input_file, output_file=None):
     
     # Encrypt
     ciphertext = encryptor.update(padded_data) + encryptor.finalize()
-    
-    # Determine output filename
-    if output_file is None:
-        output_file = input_file + '.enc'
-    
+        
     # Write encrypted file
     with open(output_file, 'wb') as f:
         f.write(ciphertext)
@@ -61,6 +57,10 @@ def main():
     
     args = parser.parse_args()
     
+    # Determine output filename
+    if args.output is None:
+        args.output = args.input_file + '.enc'
+    
     # Encrypt the file
     key, iv, ciphertext = encrypt_file(args.input_file, args.output)
     
@@ -73,15 +73,16 @@ def main():
     print(bytes_to_c_array(iv, "AesIV"))
     print("\n" + "="*60 + "\n")
     
+    '''
     # Also print as Python bytes for easy copying
     print("Python bytes format (for reference):")
     print(f"key = {key}")
     print(f"iv = {iv}")
-    
-    # Print encryption info
     print("\n" + "="*60 + "\n")
+    '''
+    # Print encryption info
     print(f"Input file: {args.input_file} ({len(open(args.input_file, 'rb').read())} bytes)")
-    print(f"Output file: {args.input_file}.enc ({len(ciphertext)} bytes)")
+    print(f"Output file: {args.output} ({len(ciphertext)} bytes)")
     print("Encryption: AES-256-CBC with PKCS7 padding")
 
 if __name__ == "__main__":
