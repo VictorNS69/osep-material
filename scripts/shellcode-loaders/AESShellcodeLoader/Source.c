@@ -1,3 +1,5 @@
+// Source from: https://nirajkharel.com.np/posts/payload-encryption-staging/
+
 #include <Windows.h>
 #include <stdio.h>
 #include <WinInet.h>
