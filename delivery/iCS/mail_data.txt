@@ -1,0 +1,13 @@
+### EMAIL_SUBJECT
+HR Kickoff event
+###
+### EVENT_SUMMARY
+HR Kickoff event
+###
+### ORGANIZER_NAME
+HR Team, megaCorp
+###
+### EVENT_TEXT
+This is a sample text that
+can have multiple lines
+###
