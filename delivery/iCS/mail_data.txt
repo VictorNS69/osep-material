@@ -10,4 +10,6 @@ HR Team, megaCorp
 ### EVENT_TEXT
 This is a sample text that
 can have multiple lines
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus nibh mauris, sodales porta faucibus in, dapibus gravida mauris. Aliquam auctor auctor volutpat. Integer finibus nec arcu porttitor dictum. Mauris tortor erat, elementum eget risus quis, elementum faucibus diam. Aenean molestie scelerisque libero, nec laoreet ligula pulvinar vehicula. Nulla odio mi, gravida at tempor sit amet, porta cursus ipsum. Nunc iaculis tempor volutpat. Morbi volutpat nibh ut massa ultrices tempus. Nullam eget ipsum luctus, feugiat augue id, placerat neque. Duis auctor ipsum eget porttitor aliquet. Cras varius laoreet justo sed vulputate. Nunc at arcu vestibulum ipsum porta iaculis ac at nisl. Pellentesque sit amet porttitor nunc. Nam eu magna in est rutrum pellentesque. Mauris at sapien eu mi pulvinar facilisis. 
 ###
