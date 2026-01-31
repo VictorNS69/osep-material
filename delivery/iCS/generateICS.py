@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import time
 import codecs
 import smtplib
@@ -11,6 +13,44 @@ from email.encoders import encode_base64
 from email.mime.multipart import MIMEMultipart
 from email.utils import COMMASPACE, formatdate
 
+# Color codes for terminal output
+class Colors:
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+    WHITE = '\033[97m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    END = '\033[0m'
+    GRAY = '\033[90m'
+
+# Helper functions for colored output
+def print_error(message):
+    print(f"{Colors.RED}{Colors.BOLD}[ERROR]{Colors.END} {Colors.RED}{message}{Colors.END}")
+
+def print_warning(message):
+    print(f"{Colors.YELLOW}{Colors.BOLD}[WARNING]{Colors.END} {Colors.YELLOW}{message}{Colors.END}")
+
+def print_success(message):
+    print(f"{Colors.GREEN}{Colors.BOLD}[SUCCESS]{Colors.END} {Colors.GREEN}{message}{Colors.END}")
+
+def print_info(message):
+    print(f"{Colors.CYAN}{Colors.BOLD}[INFO]{Colors.END} {Colors.WHITE}{message}{Colors.END}")
+
+def print_debug(message):
+    print(f"{Colors.GRAY}[DEBUG]{Colors.END} {Colors.GRAY}{message}{Colors.END}")
+
+def print_header(message):
+    print(f"\n{Colors.BLUE}{Colors.BOLD}{'='*60}{Colors.END}")
+    print(f"{Colors.BLUE}{Colors.BOLD}{message.center(60)}{Colors.END}")
+    print(f"{Colors.BLUE}{Colors.BOLD}{'='*60}{Colors.END}")
+
+def print_step(message):
+    print(f"{Colors.MAGENTA}{Colors.BOLD}→{Colors.END} {Colors.MAGENTA}{message}{Colors.END}")
+
 
 def parse_event_file():
     """Parse the mail_data.txt file and extract variables marked with ###"""
@@ -20,36 +60,50 @@ def parse_event_file():
         with codecs.open("mail_data.txt", 'r', 'utf-8') as f:
             content = f.read()
     except FileNotFoundError:
-        print("Error: mail_data.txt file not found.")
-        print("Please create a mail_data.txt file with the expected format")
+        print_error("mail_data.txt file not found.")
+        print_info("Please create a mail_data.txt file with the expected format")
         sys.exit(1)
     
-    # Split the content by ### markers
-    sections = content.split('###')
+    # Use regex to find all sections between ### markers
+    import re
+    # Pattern to match ### VARIABLE_NAME ... ###
+    pattern = r'###\s*([A-Z_]+)\s*\n(.*?)\s*###'
+    matches = re.findall(pattern, content, re.DOTALL)
     
-    # Process each section (skip empty ones)
-    for i in range(1, len(sections) - 1, 2):  # Skip every other section
-        if i + 1 < len(sections):
-            # Get the variable name (first line after ###)
-            var_section = sections[i].strip()
-            if '\n' in var_section:
-                var_name = var_section.split('\n')[0].strip()
-                var_value = '\n'.join(var_section.split('\n')[1:]).strip()
-            else:
-                var_name = var_section
-                var_value = sections[i + 1].strip()
-            
-            # Store the variable
-            if var_name:
-                variables[var_name] = var_value
+    for var_name, var_value in matches:
+        variables[var_name] = var_value.strip()
+    
+    # Alternative simpler pattern if the above doesn't work
+    if not variables:
+        # Try a simpler approach - split by ### and process
+        sections = [s.strip() for s in content.split('###') if s.strip()]
+        for i in range(0, len(sections), 2):
+            if i + 1 < len(sections):
+                var_section = sections[i]
+                # Get first line as variable name, rest as value
+                lines = var_section.split('\n', 1)
+                if lines:
+                    var_name = lines[0].strip()
+                    var_value = lines[1].strip() if len(lines) > 1 else ""
+                    variables[var_name] = var_value
+    
+    if not variables:
+        print_warning("No variables found in mail_data.txt. Using default values.")
+    else:
+        print_success(f"Loaded {len(variables)} variables from mail_data.txt")
     
     return variables
 
+
 def load_template():
-    template = ""
-    with codecs.open("msTeams-template.html", 'r', 'utf-8') as f:
-        template = f.read()
-    return template
+    try:
+        with codecs.open("msTeams-template.html", 'r', 'utf-8') as f:
+            template = f.read()
+        print_success("Loaded email template from emsTeams-template.html")
+        return template
+    except FileNotFoundError:
+        print_error("msTeams-template.html file not found.")
+        sys.exit(1)
 
 
 def prepare_template(event_text, event_url):
@@ -59,10 +113,14 @@ def prepare_template(event_text, event_url):
 
 
 def load_ics():
-    ics = ""
-    with codecs.open("iCalendar_template.ics", 'r', 'utf-8') as f:
-        ics = f.read()
-    return ics
+    try:
+        with codecs.open("iCalendar_template.ics", 'r', 'utf-8') as f:
+            ics = f.read()
+        print_success("Loaded iCalendar template from iCalendar_template.ics")
+        return ics
+    except FileNotFoundError:
+        print_error("iCalendar_template.ics file not found.")
+        sys.exit(1)
 
 
 def prepare_ics(dtstamp, dtstart, dtend, sender_email, event_url, event_summary, organizer_name, attendees):
@@ -90,7 +148,7 @@ def generate_attendees(attendees):
 
 
 def send_email(smtp_server, sender_email, to, event_url, event_file_vars):
-    print(f'Sending email to: {to}')
+    print_step(f'Sending email to: {to}')
     
     # Extract variables from event file
     email_subject = event_file_vars.get('EMAIL_SUBJECT', 'Meeting Invitation')
@@ -142,36 +200,45 @@ def send_email(smtp_server, sender_email, to, event_url, event_file_vars):
     msgAlternative.attach(part_email)
     msgAlternative.attach(part_cal)
     
-    mailServer = smtplib.SMTP(smtp_server, 25)
-    mailServer.ehlo()
-    mailServer.ehlo()
-    
-    # Handle both single recipient and multiple recipients
-    if isinstance(to, list):
-        mailServer.sendmail(sender_email, to, msg.as_string())
-    else:
-        mailServer.sendmail(sender_email, [to], msg.as_string())
+    try:
+        print_step(f"Connecting to SMTP server: {smtp_server}:25")
+        mailServer = smtplib.SMTP(smtp_server, 25)
+        mailServer.ehlo()
+        mailServer.ehlo()
         
-    mailServer.close()
+        # Handle both single recipient and multiple recipients
+        if isinstance(to, list):
+            mailServer.sendmail(sender_email, to, msg.as_string())
+        else:
+            mailServer.sendmail(sender_email, [to], msg.as_string())
+            
+        mailServer.close()
+        print_success(f"Email sent successfully to {to}")
+        return True
+    except Exception as e:
+        print_error(f"Failed to send email to {to}: {e}")
+        return False
 
 
 def main():
+    print_header("EMAIL CAMPAIGN SENDER")
+    
     parser = argparse.ArgumentParser(
         description='Send calendar meeting invitations via email.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""{Colors.GREEN}
 Example usage:
-  python generateICS.py --smtp-server smtp.example.com \\
+  {Colors.CYAN}python generateICS.py --smtp-server smtp.example.com \\
                         --sender sender@example.com \\
                         --recipient "user1@example.com,user2@example.com" \\
-                        --event-url "https://meet.example.com/meeting-id"
+                        --event-url "https://meet.example.com/meeting-id"{Colors.END}
   
-  To actually send emails (default is dry-run):
-  python generateICS.py --smtp-server smtp.example.com \\
+  {Colors.GREEN}To actually send emails (default is dry-run):{Colors.END}
+  {Colors.CYAN}python generateICS.py --smtp-server smtp.example.com \\
                         --sender sender@example.com \\
                         --recipient "user1@example.com" \\
                         --event-url "https://meet.example.com/meeting-id" \\
-                        --send-campaign
+                        --send-campaign{Colors.END}
         """
     )
     
@@ -192,64 +259,107 @@ Example usage:
     
     args = parser.parse_args()
     
+    print_step("Parsing configuration...")
+    print_info(f"SMTP Server: {Colors.BOLD}{args.smtp_server}{Colors.END}")
+    print_info(f"Sender: {Colors.BOLD}{args.sender}{Colors.END}")
+    print_info(f"Event URL: {Colors.BOLD}{args.event_url}{Colors.END}")
+    
     # Parse the mail_data.txt file to get variables
+    print_step("Loading email data from mail_data.txt...")
     event_file_vars = parse_event_file()
     
     # Parse recipients (handle single or multiple)
     if ',' in args.recipient:
         recipients = [email.strip() for email in args.recipient.split(',')]
+        print_info(f"Recipients: {Colors.BOLD}{len(recipients)} recipients{Colors.END}")
     else:
         recipients = args.recipient
-    
-    print(f"SMTP Server: {args.smtp_server}")
-    print(f"Sender: {args.sender}")
-    print(f"Recipient(s): {recipients}")
-    print(f"Event URL: {args.event_url}")
-    print(f"Send Campaign: {args.send_campaign}")
-    print(f"Extracted variables from mail_data.txt: {list(event_file_vars.keys())}")
+        print_info(f"Recipient: {Colors.BOLD}{recipients}{Colors.END}")
     
     # Check if all required variables are present
     required_vars = ['EMAIL_SUBJECT', 'EVENT_SUMMARY', 'ORGANIZER_NAME', 'EVENT_TEXT']
+    missing_vars = []
     for var in required_vars:
         if var not in event_file_vars:
-            print(f"Warning: Required variable '{var}' not found in mail_data.txt")
+            missing_vars.append(var)
+    
+    if missing_vars:
+        print_warning(f"Missing required variables: {', '.join(missing_vars)}")
+        for var in missing_vars:
+            print_warning(f"  - {var} will use default value")
     
     if args.send_campaign:
-        print("\n=== SENDING EMAILS ===")
-        # Send email(s)
-        if isinstance(recipients, list):
-            for recipient in recipients:
-                try:
-                    send_email(args.smtp_server, args.sender, recipient, 
-                              args.event_url, event_file_vars)
-                    print(f"✓ Email sent to {recipient}")
-                except Exception as e:
-                    print(f"✗ Failed to send email to {recipient}: {e}")
-        else:
-            try:
-                send_email(args.smtp_server, args.sender, recipients, 
-                          args.event_url, event_file_vars)
-                print("✓ Email sent successfully")
-            except Exception as e:
-                print(f"✗ Failed to send email: {e}")
-    else:
-        print("\n=== DRY RUN MODE ===")
-        print("Emails are NOT being sent (use --send-campaign to actually send)")
-        print("\nEmail details that would be sent:")
-        print(f"Subject: {event_file_vars.get('EMAIL_SUBJECT', 'Meeting Invitation')}")
-        print(f"From: {args.sender}")
-        print(f"To: {recipients}")
-        print(f"Event Summary: {event_file_vars.get('EVENT_SUMMARY', 'Meeting')}")
-        print(f"Organizer: {event_file_vars.get('ORGANIZER_NAME', '')}")
-        print(f"Event Text Preview: {event_file_vars.get('EVENT_TEXT', '')[:100]}...")
+        print_header("SENDING EMAILS")
+        print_warning("THIS WILL ACTUALLY SEND EMAILS!")
         
-        # Show what would be sent to each recipient
+        # Ask for confirmation
+        response = input(f"{Colors.YELLOW}Are you sure you want to send emails? (yes/NO): {Colors.END}")
+        if response.lower() not in ['yes', 'y']:
+            print_info("Campaign cancelled.")
+            sys.exit(0)
+        
+        # Send email(s)
+        success_count = 0
+        fail_count = 0
+        
         if isinstance(recipients, list):
-            print(f"\nWould send to {len(recipients)} recipients:")
+            print_step(f"Starting campaign to {len(recipients)} recipients...")
             for i, recipient in enumerate(recipients, 1):
-                print(f"  {i}. {recipient}")
+                print_step(f"Processing {i}/{len(recipients)}: {recipient}")
+                if send_email(args.smtp_server, args.sender, recipient, 
+                              args.event_url, event_file_vars):
+                    success_count += 1
+                else:
+                    fail_count += 1
+                print("")  # Empty line between emails
         else:
-            print(f"\nWould send to 1 recipient: {recipients}")
+            print_step(f"Sending to single recipient: {recipients}")
+            if send_email(args.smtp_server, args.sender, recipients, 
+                          args.event_url, event_file_vars):
+                success_count += 1
+            else:
+                fail_count += 1
+        
+        # Campaign summary
+        print_header("CAMPAIGN SUMMARY")
+        if success_count > 0:
+            print_success(f"Successfully sent: {success_count} email(s)")
+        if fail_count > 0:
+            print_error(f"Failed to send: {fail_count} email(s)")
+        
+        if success_count == 0 and fail_count > 0:
+            print_error("All emails failed to send. Please check your configuration.")
+        elif success_count > 0:
+            print_success("Campaign completed!")
+            
+    else:
+        print_header("DRY RUN MODE")
+        print_warning("Emails are NOT being sent (use --send-campaign to actually send)")
+        
+        print_step("Configuration Summary:")
+        print_info(f"Subject: {Colors.BOLD}{event_file_vars.get('EMAIL_SUBJECT', 'Meeting Invitation')}{Colors.END}")
+        print_info(f"From: {Colors.BOLD}{args.sender}{Colors.END}")
+        print_info(f"Event Summary: {Colors.BOLD}{event_file_vars.get('EVENT_SUMMARY', 'Meeting')}{Colors.END}")
+        print_info(f"Organizer: {Colors.BOLD}{event_file_vars.get('ORGANIZER_NAME', '')}{Colors.END}")
+        
+        event_text_preview = event_file_vars.get('EVENT_TEXT', '')
+        if len(event_text_preview) > 100:
+            print_info(f"Event Text: {Colors.BOLD}{event_text_preview[:100]}...{Colors.END}")
+        else:
+            print_info(f"Event Text: {Colors.BOLD}{event_text_preview}{Colors.END}")
+        
+        print_step("Recipient List:")
+        if isinstance(recipients, list):
+            print_info(f"Would send to {Colors.BOLD}{len(recipients)}{Colors.END} recipients:")
+            for i, recipient in enumerate(recipients, 1):
+                print_info(f"  {i}. {recipient}")
+        else:
+            print_info(f"Would send to: {Colors.BOLD}{recipients}{Colors.END}")
+        
+        print_step("SMTP Details:")
+        print_info(f"Server: {Colors.BOLD}{args.smtp_server}:25{Colors.END}")
+        
+        print_warning("\nTo actually send emails, run with: --send-campaign")
 
 
 if __name__ == "__main__":
