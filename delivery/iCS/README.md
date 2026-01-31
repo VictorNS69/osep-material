@@ -20,6 +20,7 @@ python3 generateICS.py --smtp-server smtp.gmail.com \
 **Sending mails**
 ```bash
 python3 generateICS.py --smtp-server mail.company.com \
+                 --smtp-port 1234 \
                  --sender events@company.com \
                  --recipient "team1@company.com,team2@company.com,team3@company.com" \
                  --event-url "https://teams.evil/j/123456789" \

@@ -147,7 +147,7 @@ def generate_attendees(attendees):
     return "\r\n".join(attendees_ics)
 
 
-def send_email(smtp_server, sender_email, to, event_url, event_file_vars):
+def send_email(smtp_server, smtp_port, sender_email, to, event_url, event_file_vars):
     print_step(f'Sending email to: {to}')
     
     # Extract variables from event file
@@ -201,8 +201,8 @@ def send_email(smtp_server, sender_email, to, event_url, event_file_vars):
     msgAlternative.attach(part_cal)
     
     try:
-        print_step(f"Connecting to SMTP server: {smtp_server}:25")
-        mailServer = smtplib.SMTP(smtp_server, 25)
+        print_step(f"Connecting to SMTP server: {smtp_server}:{smtp_port}")
+        mailServer = smtplib.SMTP(smtp_server, smtp_port)
         mailServer.ehlo()
         mailServer.ehlo()
         
@@ -256,11 +256,14 @@ Example usage:
     
     parser.add_argument('--send-campaign', action='store_true', default=False,
                        help='Actually send emails (default is dry-run mode)')
-    
+
+    parser.add_argument('--smtp-port', type=int, default=25,
+                   help='SMTP server port (default: 25)')
+
     args = parser.parse_args()
     
     print_step("Parsing configuration...")
-    print_info(f"SMTP Server: {Colors.BOLD}{args.smtp_server}{Colors.END}")
+    print_info(f"SMTP Server: {Colors.BOLD}{args.smtp_server}:{args.smtp_port}{Colors.END}")
     print_info(f"Sender: {Colors.BOLD}{args.sender}{Colors.END}")
     print_info(f"Event URL: {Colors.BOLD}{args.event_url}{Colors.END}")
     
@@ -306,7 +309,7 @@ Example usage:
             print_step(f"Starting campaign to {len(recipients)} recipients...")
             for i, recipient in enumerate(recipients, 1):
                 print_step(f"Processing {i}/{len(recipients)}: {recipient}")
-                if send_email(args.smtp_server, args.sender, recipient, 
+                if send_email(args.smtp_server, args.smtp_port, args.sender, recipient, 
                               args.event_url, event_file_vars):
                     success_count += 1
                 else:
@@ -314,7 +317,7 @@ Example usage:
                 print("")  # Empty line between emails
         else:
             print_step(f"Sending to single recipient: {recipients}")
-            if send_email(args.smtp_server, args.sender, recipients, 
+            if send_email(args.smtp_server, args.smtp_port, args.sender, recipients, 
                           args.event_url, event_file_vars):
                 success_count += 1
             else:
