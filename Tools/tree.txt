@@ -11,6 +11,7 @@
 │   ├── Set-RemotePSRemoting.ps1
 │   └── Set-RemoteWMI.ps1
 ├── Certify.exe
+├── clmbypass.exe
 ├── ligolo
 │   ├── linux
 │   │   ├── agent
@@ -31,6 +32,7 @@
 │   └── mimilib.dll
 ├── nanodump_ppl_dump.x64.exe
 ├── nanodump.x64.exe
+├── nc64.exe
 ├── NetLoader
 │   ├── NetLoader-mod.cs
 │   ├── nl.enc
@@ -38,6 +40,7 @@
 │   └── README.md
 ├── PowerUpSQL.ps1
 ├── PowerUpSQL.psd1
+├── PPLKiller.exe
 ├── PrintSpoofer64.exe
 ├── Rubeus.exe
 ├── RunasCs.exe
@@ -67,4 +70,4 @@
 ├── winPEASany_ofs.exe
 └── winPEAS.ps1
 
-10 directories, 58 files
+10 directories, 61 files
