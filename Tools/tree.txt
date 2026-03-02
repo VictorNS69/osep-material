@@ -1,0 +1,70 @@
+.
+├── ActiveDirectory
+│   ├── Invoke-Mimikatz.ps1
+│   ├── Invoke-PowerShellTCP.ps1
+│   ├── notas.md
+│   ├── PowerCat.ps1
+│   ├── PowerUp.ps1
+│   ├── PowerView-Dev.ps1
+│   ├── PowerView.ps1
+│   ├── README.md
+│   ├── Set-RemotePSRemoting.ps1
+│   └── Set-RemoteWMI.ps1
+├── Certify.exe
+├── ligolo
+│   ├── linux
+│   │   ├── agent
+│   │   ├── ligolo-ng.history
+│   │   ├── ligolo-ng.yaml
+│   │   ├── ligolo-selfcerts
+│   │   │   ├── ligolo_cert
+│   │   │   └── ligolo_key
+│   │   └── proxy
+│   └── windows
+│       ├── agent.exe
+│       └── ligolo-ng_proxy_0.8.3_windows_amd64.zip
+├── linpeas.sh
+├── mimikatz
+│   ├── BetterSafetyKatz.exe
+│   ├── mimidrv.sys
+│   ├── mimikatz.exe
+│   └── mimilib.dll
+├── nanodump_ppl_dump.x64.exe
+├── nanodump.x64.exe
+├── NetLoader
+│   ├── NetLoader-mod.cs
+│   ├── nl.enc
+│   ├── NL-mod.exe
+│   └── README.md
+├── PowerUpSQL.ps1
+├── PowerUpSQL.psd1
+├── PrintSpoofer64.exe
+├── Rubeus.exe
+├── RunasCs.exe
+├── SCShell
+│   ├── CS-BOF
+│   │   ├── beacon.h
+│   │   ├── Makefile
+│   │   ├── README.md
+│   │   ├── scshellbof.c
+│   │   ├── scshellbof.imp.x64.o
+│   │   ├── scshellbof.imp.x86.o
+│   │   ├── scshellbof.x64.o
+│   │   ├── scshellbof.x86.o
+│   │   └── scshell.cna
+│   ├── network.png
+│   ├── README.md
+│   ├── SCShell.c
+│   ├── SCShell.exe
+│   ├── scshell.py
+│   └── SharpSCShell.cs
+├── Seatbelt.exe
+├── SharpDPAPI.exe
+├── SharpEfsPotato.exe
+├── SpoolSample.exe
+├── tree.txt
+├── winPEASany.exe
+├── winPEASany_ofs.exe
+└── winPEAS.ps1
+
+10 directories, 58 files
