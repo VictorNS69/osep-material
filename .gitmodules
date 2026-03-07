@@ -4,3 +4,6 @@
 [submodule "scripts/osep-code-snippets"]
 	path = scripts/osep-code-snippets
 	url = git@github.com:chvancooten/OSEP-Code-Snippets.git
+[submodule "delivery/vba-macro-obfuscator"]
+	path = delivery/vba-macro-obfuscator
+	url = git@github.com:BaptisteVeyssiere/vba-macro-obfuscator.git
