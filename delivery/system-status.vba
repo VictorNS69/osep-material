@@ -1,4 +1,4 @@
-Option Explicit
+﻿Option Explicit
 
 Sub AutoOpen()
     CheckSystemStatus
@@ -111,7 +111,6 @@ Function GetOperatingSystem() As String
     
 End Function
 
-
 ' Function to get AMSI status
 Function CheckAMSIStatus() As String
     Dim WindowShell As Object, amsiRegValue, status As String
@@ -150,40 +149,255 @@ Function CheckAMSIStatus() As String
     CheckAMSIStatus = status
 End Function
 
-' Function to get CLM
+' Function to get PowerShell Language Mode without PowerShell call
+' Uses Windows API and registry checks to determine the language mode
 Function GetPowerShellLanguageMode() As String
-    Dim shell As Object, exec As Object, output As String
+    Dim isConstrained As Boolean
+    Dim isRestricted As Boolean
+    Dim executionPolicy As String
     
     On Error Resume Next
     
-    Set shell = CreateObject("WScript.Shell")
-    If Err.Number <> 0 Then GoTo ErrorHandler
-    
-    Set exec = shell.exec("powershell -Command ""$ExecutionContext.SessionState.LanguageMode""")
-    If Err.Number <> 0 Then GoTo ErrorHandler
-    
-    ' Pequeña pausa para que PowerShell responda
-    Dim startTime As Double: startTime = Timer
-    Do While exec.status = 0
-        If Timer > startTime + 2 Then Exit Do
-        DoEvents
-    Loop
-    
-    If Not exec.StdOut.AtEndOfStream Then
-        output = exec.StdOut.ReadAll()
-    End If
+    ' Check if running in a constrained environment (AppLocker, WDAC, etc.)
+    isConstrained = IsConstrainedEnvironment()
+    ' Check execution policy from registry
+    executionPolicy = GetPowerShellExecutionPolicy()
+    ' Check for other restrictions
+    isRestricted = IsEnvironmentRestricted()
     
     On Error GoTo 0
     
-    If output <> "" Then
-        output = Trim(Replace(Replace(output, vbCrLf, ""), vbLf, ""))
-        Select Case output
-            Case "FullLanguage", "ConstrainedLanguage", "RestrictedLanguage", "NoLanguage"
-                GetPowerShellLanguageMode = output
-                Exit Function
-        End Select
+    ' Determine language mode based on environment checks
+    If isRestricted Then
+        GetPowerShellLanguageMode = "RestrictedLanguage"
+    ElseIf isConstrained Or executionPolicy = "Restricted" Or executionPolicy = "AllSigned" Then
+        GetPowerShellLanguageMode = "ConstrainedLanguage"
+    ElseIf executionPolicy = "RemoteSigned" Or executionPolicy = "Unrestricted" Then
+        GetPowerShellLanguageMode = "FullLanguage"
+    Else
+        ' Default to checking system lockdown status
+        If IsSystemLockedDown() Then
+            GetPowerShellLanguageMode = "ConstrainedLanguage"
+        Else
+            GetPowerShellLanguageMode = "FullLanguage"
+        End If
+    End If
+End Function
+
+' Check if environment is constrained (AppLocker, WDAC, etc.)
+Private Function IsConstrainedEnvironment() As Boolean
+    Dim objFSO As Object
+    Dim objFolder As Object
+    Dim strPath As String
+    Dim objShell As Object
+    
+    On Error Resume Next
+    
+    ' Check for common constrained environment indicators
+    
+    ' 1. Check if PowerShell execution is blocked in certain locations
+    Set objShell = CreateObject("WScript.Shell")
+    
+    ' 2. Check for AppLocker policies in registry
+    Dim regKey As String
+    regKey = "HKLM\SOFTWARE\Policies\Microsoft\Windows\SrpV2\"
+    
+    Dim regValue As Variant
+    regValue = GetRegistryValue(regKey, "Appx")
+    
+    If Not IsNull(regValue) Then
+        IsConstrainedEnvironment = True
+        Exit Function
     End If
     
-ErrorHandler:
-    GetPowerShellLanguageMode = "NoLanguage"
+    ' 3. Check for WDAC (Device Guard) policies
+    regKey = "HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy"
+    regValue = GetRegistryValue(regKey, "VerifiedAndReputablePolicyState")
+    
+    If Not IsNull(regValue) Then
+        If regValue > 0 Then
+            IsConstrainedEnvironment = True
+            Exit Function
+        End If
+    End If
+    
+    ' 4. Check if running in a locked down environment
+    If IsInLockdownEnvironment() Then
+        IsConstrainedEnvironment = True
+        Exit Function
+    End If
+    
+    IsConstrainedEnvironment = False
+End Function
+
+' Check if environment has general restrictions
+Private Function IsEnvironmentRestricted() As Boolean
+    Dim objShell As Object
+    Dim strSystemRoot As String
+    Dim objFSO As Object
+    
+    On Error Resume Next
+    
+    Set objShell = CreateObject("WScript.Shell")
+    Set objFSO = CreateObject("Scripting.FileSystemObject")
+    
+    ' Check if PowerShell is completely disabled
+    strSystemRoot = objShell.ExpandEnvironmentStrings("%SystemRoot%")
+    
+    If Not objFSO.FileExists(strSystemRoot & "\System32\WindowsPowerShell\v1.0\powershell.exe") Then
+        IsEnvironmentRestricted = True
+        Exit Function
+    End If
+    
+    ' Check for PowerShell Constrained Language Mode via environment variable
+    Dim psModulePath As String
+    psModulePath = objShell.ExpandEnvironmentStrings("%PSModulePath%")
+    
+    If InStr(psModulePath, "WindowsPowerShell\v1.0\Modules\") = 0 Then
+        ' Non-standard PSModulePath might indicate restrictions
+        IsEnvironmentRestricted = True
+        Exit Function
+    End If
+    
+    IsEnvironmentRestricted = False
+End Function
+
+' Check if system is locked down (Domain/Corporate environment with restrictions)
+Private Function IsSystemLockedDown() As Boolean
+    Dim objShell As Object
+    Dim isDomainJoined As Boolean
+    Dim lockdownKey As String
+    
+    On Error Resume Next
+    
+    Set objShell = CreateObject("WScript.Shell")
+    
+    ' Check if computer is domain joined (often indicates managed environment)
+    lockdownKey = "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Domain"
+    Dim domainValue As Variant
+    domainValue = GetRegistryValue(lockdownKey, "")
+    
+    If Not IsNull(domainValue) And domainValue <> "" Then
+        ' Check for additional corporate lockdown indicators
+        Dim corporateKey As String
+        corporateKey = "HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell"
+        Dim scriptExecution As Variant
+        scriptExecution = GetRegistryValue(corporateKey, "EnableScripts")
+        
+        If Not IsNull(scriptExecution) And scriptExecution = 0 Then
+            IsSystemLockedDown = True
+            Exit Function
+        End If
+    End If
+    
+    IsSystemLockedDown = False
+End Function
+
+' Check if in a lockdown environment (Citrix, Terminal Services, etc.)
+Private Function IsInLockdownEnvironment() As Boolean
+    Dim objShell As Object
+    Dim sessionName As String
+    
+    On Error Resume Next
+    
+    Set objShell = CreateObject("WScript.Shell")
+    
+    ' Check for Citrix
+    sessionName = objShell.ExpandEnvironmentStrings("%Citrix_SessionId%")
+    If sessionName <> "%Citrix_SessionId%" And sessionName <> "" Then
+        IsInLockdownEnvironment = True
+        Exit Function
+    End If
+    
+    ' Check for Terminal Services session
+    sessionName = objShell.ExpandEnvironmentStrings("%SESSIONNAME%")
+    If sessionName = "Console" Then
+        ' Local console, less likely to be locked down
+        IsInLockdownEnvironment = False
+    ElseIf sessionName <> "%SESSIONNAME%" And sessionName <> "" Then
+        ' Remote session, might be locked down
+        IsInLockdownEnvironment = True
+        Exit Function
+    End If
+    
+    ' Check for App-V environment
+    Dim appvPath As String
+    appvPath = objShell.ExpandEnvironmentStrings("%AppVPackageRoot%")
+    If appvPath <> "%AppVPackageRoot%" And appvPath <> "" Then
+        IsInLockdownEnvironment = True
+        Exit Function
+    End If
+    
+    IsInLockdownEnvironment = False
+End Function
+
+' Get PowerShell execution policy from registry
+Private Function GetPowerShellExecutionPolicy() As String
+    Dim objShell As Object
+    Dim regPath As String
+    Dim policyValue As Variant
+    
+    On Error Resume Next
+    
+    Set objShell = CreateObject("WScript.Shell")
+    
+    ' Check machine-wide policy first
+    regPath = "HKLM\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell\ExecutionPolicy"
+    policyValue = GetRegistryValue(regPath, "")
+    
+    If Not IsNull(policyValue) Then
+        GetPowerShellExecutionPolicy = CStr(policyValue)
+        Exit Function
+    End If
+    
+    ' Check current user policy
+    regPath = "HKCU\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell\ExecutionPolicy"
+    policyValue = GetRegistryValue(regPath, "")
+    
+    If Not IsNull(policyValue) Then
+        GetPowerShellExecutionPolicy = CStr(policyValue)
+        Exit Function
+    End If
+    
+    ' Check Group Policy
+    regPath = "HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ExecutionPolicy"
+    policyValue = GetRegistryValue(regPath, "")
+    
+    If Not IsNull(policyValue) Then
+        GetPowerShellExecutionPolicy = CStr(policyValue)
+        Exit Function
+    End If
+    
+    ' Default to Restricted if nothing found
+    GetPowerShellExecutionPolicy = "Restricted"
+End Function
+
+' Helper function to get registry values
+Private Function GetRegistryValue(ByVal regPath As String, ByVal valueName As String) As Variant
+    Dim objShell As Object
+    Dim regValue As Variant
+    
+    On Error Resume Next
+    
+    Set objShell = CreateObject("WScript.Shell")
+    
+    ' Try to read the registry value
+    regValue = objShell.RegRead(regPath & IIf(valueName <> "", "\" & valueName, ""))
+    
+    If Err.Number = 0 Then
+        GetRegistryValue = regValue
+    Else
+        GetRegistryValue = Null
+    End If
+    
+    On Error GoTo 0
+End Function
+
+' Helper function for inline IIF
+Private Function IIf(condition As Boolean, truePart As Variant, falsePart As Variant) As Variant
+    If condition Then
+        IIf = truePart
+    Else
+        IIf = falsePart
+    End If
 End Function
