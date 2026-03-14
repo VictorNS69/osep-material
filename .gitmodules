@@ -1,9 +1,7 @@
 [submodule "scripts/http-server"]
 	path = scripts/http-server
 	url = git@gist.github.com:eac3d29c18e8f1590b88b1092f505933.git
-[submodule "scripts/osep-code-snippets"]
-	path = scripts/osep-code-snippets
+[submodule "Tools/osep-code-snippets"]
+	path = Tools/osep-code-snippets
 	url = git@github.com:chvancooten/OSEP-Code-Snippets.git
-[submodule "delivery/vba-macro-obfuscator"]
-	path = delivery/vba-macro-obfuscator
-	url = git@github.com:BaptisteVeyssiere/vba-macro-obfuscator.git
+
