@@ -3,17 +3,15 @@ param(
     [Parameter(Mandatory=$true)]
     [ValidateSet("encrypt", "decrypt")]
     [string]$mode,
-
     [Parameter(Mandatory=$true)]
     [int]$caesar,
-
     [Parameter(Mandatory=$true)]
-    [string]$text
+    [string]$text,
+    [Parameter(Mandatory=$false)]
+    [switch]$vbaprint
 )
-
 # Enable strict mode to catch common errors
 Set-StrictMode -Version Latest
-
 # Error handling function
 function Write-ErrorAndExit {
     param(
@@ -23,13 +21,11 @@ function Write-ErrorAndExit {
     Write-Host "ERROR: $Message" -ForegroundColor Red
     exit $ExitCode
 }
-
 try {
     # Validate Caesar shift is non-negative
     if ($caesar -lt 0) {
         Write-ErrorAndExit "Caesar shift must be a non-negative integer. Received: $caesar"
     }
-
     # Process based on operation
     if ($mode -eq "encrypt") {
         Write-Host "Encrypting with Caesar shift: +$caesar" -ForegroundColor Yellow
@@ -51,8 +47,23 @@ try {
         # Join the numbers into a single string
         $result = -join $resultChars
         
-        Write-Host "`nEncrypted result (as number string):" -ForegroundColor Green
-        Write-Host $result -ForegroundColor Cyan
+        # VBA editor only allows 1023 characters per line
+        if ($vbaprint) {
+            # Each encoded char is 3 digits, so keep chunks aligned to 3-char boundaries.
+            # Max chunk size: floor(1000 / 3) * 3 = 999 characters.
+            $chunkSize = [Math]::Floor(1000 / 3) * 3  
+            Write-Host "`nEncrypted result (VBA print format):" -ForegroundColor Green
+            $offset = 0
+            while ($offset -lt $result.Length) {
+                $chunk = $result.Substring($offset, [Math]::Min($chunkSize, $result.Length - $offset))
+                Write-Host "Apples = Apples + ""$chunk""" -ForegroundColor Cyan
+                $offset += $chunkSize
+            }
+        }
+        else {
+            Write-Host "`nEncrypted result (as number string):" -ForegroundColor Green
+            Write-Host $result -ForegroundColor Cyan
+        }
     }
     else { # decrypt mode
         Write-Host "Decrypting with Caesar shift: -$caesar" -ForegroundColor Yellow
