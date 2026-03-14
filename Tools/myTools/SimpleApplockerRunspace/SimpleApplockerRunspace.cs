@@ -56,4 +56,3 @@ namespace Bypass
         }
     }
 }
-installutil.exe /cmd:"Get-Process" /output myapp.exe
