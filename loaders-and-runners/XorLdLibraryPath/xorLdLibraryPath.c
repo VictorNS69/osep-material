@@ -91,5 +91,4 @@ void runmahpayload() {
 
     munmap(exec_mem, chunk.size);
     printf("Library hijacked!\n");
-    ret();
 }
