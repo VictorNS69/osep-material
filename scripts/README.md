@@ -69,7 +69,7 @@ CipherText Array to Binary Converter - Extracts hex bytes from C unsigned char a
 A simple utility that parses C source files containing `unsigned char cipherText[]` arrays, extracts all hex bytes (format: `0x??`), and writes them as raw binary data to an output file. Perfect for extracting embedded payloads, shellcode, or encrypted data from C source files.
 
 ## Usage
-```python
+```bash
 python cRawToBin.py source.c out.bin
 ```
 > [!NOTE]
