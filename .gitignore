@@ -16,6 +16,7 @@ scripts/shellcode-loaders/AESShellcodeLoader/AESShellLoader/
 
 # Bak files
 *.bak
+backup*
 
 # Tools directory
 /Tools/*
