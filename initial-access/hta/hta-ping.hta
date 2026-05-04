@@ -7,7 +7,7 @@
       Dim var_shell
       Set var_shell = CreateObject("Wscript.Shell")
       // sudo tcpdump -i any -n -l icmp
-      var_shell.run "ping -n 5 192.168.45.246", 0, true
+      var_shell.run "ping -n 5 192.168.45.1", 0, true
       End Function
       var_func
       self.close

