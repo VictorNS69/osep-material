@@ -5,6 +5,7 @@
 │   ├── notas.md
 │   ├── PowerCat.ps1
 │   ├── PowerUp.ps1
+│   ├── PowerView2.ps1
 │   ├── PowerView-Dev.ps1
 │   ├── PowerView.ps1
 │   ├── README.md
@@ -12,37 +13,35 @@
 │   └── Set-RemoteWMI.ps1
 ├── Certify.exe
 ├── clmbypass.exe
-├── ligolo
-│   ├── linux
-│   │   ├── agent
-│   │   ├── ligolo-ng.history
-│   │   ├── ligolo-ng.yaml
-│   │   ├── ligolo-selfcerts
-│   │   │   ├── ligolo_cert
-│   │   │   └── ligolo_key
-│   │   └── proxy
-│   └── windows
-│       ├── agent.exe
-│       └── ligolo-ng_proxy_0.8.3_windows_amd64.zip
 ├── linpeas.sh
 ├── mimikatz
 │   ├── BetterSafetyKatz.exe
-│   ├── mimidrv.sys
-│   ├── mimikatz.exe
-│   └── mimilib.dll
+│   ├── Win32
+│   │   ├── mimidrv.sys
+│   │   ├── mimikatz.exe
+│   │   ├── mimilib.dll
+│   │   ├── mimilove.exe
+│   │   └── mimispool.dll
+│   └── x64
+│       ├── mimidrv.sys
+│       ├── mimikatz.exe
+│       ├── mimilib.dll
+│       └── mimispool.dll
 ├── nanodump_ppl_dump.x64.exe
 ├── nanodump.x64.exe
 ├── nc64.exe
-├── NetLoader
-│   ├── NetLoader-mod.cs
-│   ├── nl.enc
-│   ├── NL-mod.exe
-│   └── README.md
+├── osep-code-snippets
+├── PowerSploit.psd1
+├── PowerUp.ps1
 ├── PowerUpSQL.ps1
 ├── PowerUpSQL.psd1
 ├── PPLKiller.exe
 ├── PrintSpoofer64.exe
+├── PrivescCheck.ps1
+├── pspy64
 ├── Rubeus.exe
+├── Rubeus.exe-bak
+├── Rubeus-net4.8.1.exe
 ├── RunasCs.exe
 ├── SCShell
 │   ├── CS-BOF
@@ -64,10 +63,26 @@
 ├── Seatbelt.exe
 ├── SharpDPAPI.exe
 ├── SharpEfsPotato.exe
+├── sharphound-v2.12.0
+│   ├── SharpHound.exe
+│   ├── SharpHound.exe.config
+│   ├── SharpHound.pdb
+│   ├── SharpHound.ps1
+│   ├── System.Console.dll
+│   ├── System.Diagnostics.Tracing.dll
+│   ├── System.Net.Http.dll
+│   └── v2.0.0
+│       ├── SharpHound.exe
+│       ├── SharpHound.exe.config
+│       ├── SharpHound.pdb
+│       ├── SharpHound.ps1
+│       ├── SharpHound-v2.0.0.zip
+│       ├── System.Console.dll
+│       ├── System.Diagnostics.Tracing.dll
+│       └── System.Net.Http.dll
 ├── SpoolSample.exe
 ├── tree.txt
 ├── winPEASany.exe
 ├── winPEASany_ofs.exe
 └── winPEAS.ps1
 
-10 directories, 61 files
