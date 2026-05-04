@@ -62,4 +62,18 @@ Add additional directories to exclude:
 ```bash
 scripts/ip-replace.py --search "http://192.168.1.100" --replace-url "http://10.0.0.1" --backup-dir ./backups --exclude-dirs "test" "temp" ".venv"
 ```
+# cRawToBin.py
+CipherText Array to Binary Converter - Extracts hex bytes from C unsigned char arrays and saves them directly to binary files.
 
+## Overview
+A simple utility that parses C source files containing `unsigned char cipherText[]` arrays, extracts all hex bytes (format: `0x??`), and writes them as raw binary data to an output file. Perfect for extracting embedded payloads, shellcode, or encrypted data from C source files.
+
+## Usage
+```python
+python cRawToBin.py source.c out.bin
+```
+> [!NOTE]
+> If you encounter encoding errors, convert the file first:
+> ```bash
+> iconv -f UTF-16 -t UTF-8 source.c > source_utf8.c
+> ```
