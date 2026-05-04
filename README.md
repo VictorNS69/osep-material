@@ -16,5 +16,5 @@ python3 scripts/http-server/simple-http-post-server.py 8000
 
 ```bash
 # In the root folder
-scripts/ip-replace.py --search 'http://<URL>:<PORT>' --replace http://192.168.235.130:8000 --backup-dir ./backup --mode direct
+scripts/ip-replace.py --search '192.168.45.1' --replace-url '192.168.45.223' --backup-dir . --no-confirm
 ```
