@@ -34,7 +34,7 @@ def color_text(text, color):
 DEFAULT_EXCLUDED_DIRS = {'backup', '.git', '.gitmodules', 'Tools', 'tunneling/ligolo'}
 
 # Default excluded files (to prevent self-modification)
-DEFAULT_EXCLUDED_FILES = {'ip-replace.py', 'ip-replace.pyc', '__pycache__', 'simple-http-post-server.py'}
+DEFAULT_EXCLUDED_FILES = {'ip-replace.py', 'ip-replace.pyc', '__pycache__', 'simple-http-post-server.py', 'Invoke-ConPtyShell.ps1'}
 
 # File extensions to process
 TARGET_EXTENSIONS = {'.ps1', '.hta', '.cs', '.sh', '.py', '.aspx', '.c', '.vba'}

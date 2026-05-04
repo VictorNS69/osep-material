@@ -1,70 +1,65 @@
 # ip-replace.py
-Search & Replace URLs/IPs: Finds and replaces text patterns (supports regex) in files
+**URL/IP Search & Replace Tool** - Recursively searches and replaces URLs/IPs in source files with mandatory backup protection and colored diff preview.
 
-**Three Operation Modes**:
-- `search` (default): Only searches and displays matches without making changes
-- `interactive`: Shows each match and asks for confirmation before replacing
-- `direct`: Automatically replaces all matches (requires backup)
+## Overview
+A safety-focused Python script that searches through common source code files and replaces URL patterns. Features per-file confirmation, mandatory backups (except dry-run), and colored output showing exactly what will change before modification.
 
-**Safety Features**:
-- Mandatory backup directory for interactive/direct modes
-- Dry-run (`--dry-run`) option to preview changes
-- Automatic exclusion of backup files and critical directories
-- File backups before any modifications
+## Key Features
+- **Interactive Mode (Default)**: Shows changes and asks for confirmation per file
+- **Dry-Run Mode**: Preview changes without any modifications (no backup required)
+- **Automatic Mode**: Replace without confirmation (backup still required)
+- **Mandatory Backups**: Timestamped backups created before any modification
+- **Colored Diff Output**: Old lines in red (`-`), new lines in green (`+`)
+- **Smart Exclusion**: Automatically excludes sensitive directories and the script itself
 
-**Smart Filtering**:
-- Excludes common file types (`*.md`, `*.exe`, `*.bak`, `*.bin`)
-- Excludes common directories (`.git`, `node_modules`, `venv`, etc.)
-- Custom extension filtering
-- Interactive mode with per-match confirmation
+## Target File Types
+```py
+TARGET_EXTENSIONS = {'.ps1', '.hta', '.cs', '.sh', '.py', '.aspx', '.c', '.vba'}
+```
+### Excluded Directories
+```py
+DEFAULT_EXCLUDED_DIRS = {'backup', '.git', '.gitmodules', 'Tools', 'tunneling/ligolo'}
+```
+### Excluded Files
+```py
+DEFAULT_EXCLUDED_FILES = {'ip-replace.py', 'ip-replace.pyc', '__pycache__', 'simple-http-post-server.py', 'Invoke-ConPtyShell.ps1'}
+```
 
-## Usage
->[!NOTE]
+## Usage Examples
+> [!NOTE]
 > Always run in the root directory.
 
-**Basic Search (Safe - No Changes)**
+**Basic Replacement (Interactive Mode)**
+
+Replace a specific URL with confirmation prompt before each file:
 ```bash
-# Find all occurrences of old IP addresses
-scripts/ip-replace.py --search-url "http://192\.168\.1\.[0-9]+" --replace-url "10.0.0.1"
-
-# Search for HTTP URLs to replace with HTTPS
-scripts/ip-replace.py --search-url "http://example\.com" --replace-url "https://example.com"
+scripts/ip-replace.py --search "http://192.168.235.130:8000" --replace-url "http://192.168.45.1:80" --backup-dir ./backups
 ```
-**Interactive Mode (Safe - Confirm Each Change)**
+**Dry-Run Mode (Preview Only)**
+
+See what would change without modifying any files:
 ```bash
-# Interactive replacement with backup
-scripts/ip-replace.py --mode interactive --search-url "http://old-server\.com" --replace-url "https://new-server.com" --backup-dir ./backups
-
-# Interactive with file type filtering
-scripts/ip-replace.py --mode interactive --search-url "http://localhost:8080" --replace-url "https://production.example.com" --extensions .js .html .css --backup-dir ./backups
+scripts/ip-replace.py --search "http://192.168.235.130" --replace-url "http://10.0.0.1" --dry-run
 ```
-**Direct Mode (Automatic - Use with Caution)**
->[!CAUTION]
-> Always run with `--dry-run` first to prevent unwanted modifications.
+**Generic URL Replacement**
 
+Replace any URL found with a new URL:
 ```bash
-# Direct replacement with backup (required)
-scripts/ip-replace.py --mode direct --search-url "http://dev\.internal\.net" --replace-url "http://api.company.com" --backup-dir ./backups
-
-# Direct mode with dry-run (preview only)
-scripts/ip-replace.py --mode direct --search-url "http://test-environment" --replace-url "https://production" --backup-dir ./backups --dry-run
+scripts/ip-replace.py --replace-url "http://192.168.45.1:443" --backup-dir ./backups
 ```
-**Advanced Options**
+**Automatic Mode (No Confirmation)**
+
+Replace in all files without asking (backup still required):
 ```bash
-# Process specific directory
-scripts/ip-replace.py --search-url "http://temp-ip" --replace-url "http://permanent-host" --directory /path/to/project
-
-# Exclude additional patterns
-scripts/ip-replace.py --search-url "http://old-domain\.com" --replace-url "http://new-domain.com" --exclude "*.tmp" "*.log" "cache"
-
-# Process only specific file types
-scripts/ip-replace.py --search-url "http://192\.168\.[0-9]+\.[0-9]+" --replace-url "http://10.0.0.0:80" --extensions .py .json .yaml .yml
+scripts/ip-replace.py --search "http://old-server.com" --replace-url "https://new-server.com" --backup-dir ./backups --no-confirm
 ```
-**Complex Pattern Matching (Regex)**
+> [!CAUTION]
+> Always run with --dry-run first to prevent unwanted modifications.
+
+**Custom Excluded Directories**
+
+Add additional directories to exclude:
 ```bash
-# Match multiple URL patterns
-scripts/ip-replace.py --search-url "(http://|https://)?old-site\.(com|net)" --replace-url "https://new-site.com"
-
-# Replace IP ranges
-scripts/ip-replace.py --search-url "http://10\.0\.0\.[0-9]{1,3}"  --replace-url "http://192.168.0.0"
+scripts/ip-replace.py --search "http://192.168.1.100" --replace-url "http://10.0.0.1" --backup-dir ./backups --exclude-dirs "test" "temp" ".venv"
 ```
+
