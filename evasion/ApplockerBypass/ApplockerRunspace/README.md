@@ -1,5 +1,5 @@
-# Simple Applocker Runspace
-Simple AppLocker runspace bypass where you can dinamically run commands.
+# Applocker Runspace
+AppLocker runspace bypass where you can dinamically run commands.
 
 ## Args
 - `/cmd:"your command"`: the command you want tu run
